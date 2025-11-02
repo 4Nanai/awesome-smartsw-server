@@ -5,9 +5,11 @@ const WSStatusRouter = Router();
 
 WSStatusRouter.get("/", (req, res) => {
     const connectedHardwareIds = Array.from(connectionMap.keys());
+    const userInfo = req.user!;
     res.json({
         activeConnections: connectionMap.size,
-        connectedDevices: connectedHardwareIds
+        connectedDevices: connectedHardwareIds,
+        userInfo: userInfo
     });
 });
 
