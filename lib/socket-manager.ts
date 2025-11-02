@@ -4,14 +4,17 @@ import type { IncomingMessage } from 'http';
 import {BindingTokenDAO, WebSocketMessageDTO} from "./definition";
 import db from "./db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
+import {verifyToken} from "./jwt";
 
 // extend WebSocket to include hardwareId
 interface AuthenticatedWebSocket extends WebSocket {
     hardwareId?: string;
+    userId?: number;
 }
 
 // connection map to track active connections
-export const connectionMap = new Map<string, AuthenticatedWebSocket>();
+export const deviceConnectionMap = new Map<string, AuthenticatedWebSocket>();
+export const userConnectionMap = new Map<string, AuthenticatedWebSocket>();
 
 // authentication timeout
 const AUTH_TIMEOUT_MS = 10000;
@@ -98,17 +101,43 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 clearTimeout(authTimeout); // clear the auth timeout
 
                 // handle stale connections
-                if (connectionMap.has(hardwareId)) {
+                if (deviceConnectionMap.has(hardwareId)) {
                     console.log(`[SocketManager] Found stale connection for ${hardwareId}. Terminating it.`);
-                    const oldSocket = connectionMap.get(hardwareId);
+                    const oldSocket = deviceConnectionMap.get(hardwareId);
                     oldSocket?.terminate();
                 }
 
                 // register the new connection
                 ws.hardwareId = hardwareId;
-                connectionMap.set(hardwareId, ws);
+                deviceConnectionMap.set(hardwareId, ws);
 
                 ws.send(JSON.stringify({ type: 'auth_success', message: 'Authentication successful.' }));
+                return;
+            }
+
+            if (data.type === 'user_auth' && data.payload?.token) {
+                const token = data.payload.token;
+                const userPayload = verifyToken(token);
+                if (!userPayload) {
+                    console.warn('[SocketManager] User auth failed: Invalid token');
+                    ws.close();
+                    return;
+                }
+                const userId = userPayload.id;
+                console.log(`[SocketManager] User ${userId} authenticated.`);
+                clearTimeout(authTimeout); // clear the auth timeout
+
+                // handle stale connections
+                if (userConnectionMap.has(userId.toString())) {
+                    console.log(`[SocketManager] Found stale connection for user ${userId}. Terminating it.`);
+                    const oldSocket = userConnectionMap.get(userId.toString());
+                    oldSocket?.terminate();
+                }
+                // register the new connection
+                ws.userId = userId;
+                userConnectionMap.set(userId.toString(), ws);
+
+                ws.send(JSON.stringify({ type: 'auth_success', message: 'User authentication successful.' }));
                 return;
             }
 
@@ -131,8 +160,8 @@ export function initWebSocketServer(httpServer: HttpServer) {
         ws.on('close', (code, reason) => {
             clearTimeout(authTimeout);
             if (ws.hardwareId) {
-                if (connectionMap.get(ws.hardwareId) === ws) {
-                    connectionMap.delete(ws.hardwareId);
+                if (deviceConnectionMap.get(ws.hardwareId) === ws) {
+                    deviceConnectionMap.delete(ws.hardwareId);
                     console.log(`[SocketManager] Device ${ws.hardwareId} disconnected. (Code: ${code}, Reason: ${reason})`);
                 } else {
                     console.log(`[SocketManager] Stale connection for ${ws.hardwareId} closed.`);

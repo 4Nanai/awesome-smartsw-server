@@ -48,10 +48,10 @@ npm run dev
   }
 }
 ```
-3. `command`
+3. `endpoint_command`
 ```json
 {
-  "type": "command",
+  "type": "endpoint_command",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
     "command": {
@@ -75,10 +75,10 @@ npm run dev
   "message": "Authentication successful."
 }
 ```
-2. `command`
+2. `user_command`
 ```json
 {
-  "type": "command",
+  "type": "user_command",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
     "command": {

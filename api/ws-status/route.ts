@@ -1,13 +1,13 @@
 import { Router } from "express";
-import {connectionMap} from "../../lib/socket-manager";
+import {deviceConnectionMap} from "../../lib/socket-manager";
 
 const WSStatusRouter = Router();
 
 WSStatusRouter.get("/", (req, res) => {
-    const connectedHardwareIds = Array.from(connectionMap.keys());
+    const connectedHardwareIds = Array.from(deviceConnectionMap.keys());
     const userInfo = req.user!;
     res.json({
-        activeConnections: connectionMap.size,
+        activeConnections: deviceConnectionMap.size,
         connectedDevices: connectedHardwareIds,
         userInfo: userInfo
     });
