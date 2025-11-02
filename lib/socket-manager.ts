@@ -1,7 +1,9 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server as HttpServer } from 'http';
 import type { IncomingMessage } from 'http';
-import {WebSocketMessageDTO} from "./definition";
+import {BindingTokenDAO, WebSocketMessageDTO} from "./definition";
+import db from "./db";
+import {ResultSetHeader, RowDataPacket} from "mysql2";
 
 // extend WebSocket to include hardwareId
 interface AuthenticatedWebSocket extends WebSocket {
@@ -49,9 +51,41 @@ export function initWebSocketServer(httpServer: HttpServer) {
             // authenticate device
             if (data.type === 'device_auth' && data.payload?.uniqueHardwareId) {
                 const hardwareId = data.payload.uniqueHardwareId;
-
+                const token = data.payload.token;
+                if (!token) {
+                    console.warn('[SocketManager] Auth failed: Missing token');
+                    ws.close();
+                    return;
+                }
                 // TODO: query database to verify hardwareId
-                const isAuthenticated = true; // assume success
+                let isAuthenticated = false;
+                try {
+                    // Start transaction
+                    await db.beginTransaction();
+
+                    const selectBindingTokenQuery = `SELECT id, user_id FROM binding_tokens WHERE token = ? AND is_used = 0 AND expires_at > NOW()`;
+                    const [selectBTResult] = await db.execute<RowDataPacket[]>(selectBindingTokenQuery, [token]) as [BindingTokenDAO[], any];
+                    if (selectBTResult.length !== 1) {
+                        throw new Error('Invalid or expired token');
+                    }
+                    const updateBindingTokenQuery = `UPDATE binding_tokens SET is_used = 1 WHERE id = ?`;
+                    const [updateBTResult] = await db.execute<ResultSetHeader>(updateBindingTokenQuery, [selectBTResult[0]!.id]);
+                    if (updateBTResult.affectedRows !== 1) {
+                        throw new Error('Failed to mark token as used');
+                    }
+                    const insertDeviceQuery = `INSERT INTO devices (unique_hardware_id, user_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE unique_hardware_id = unique_hardware_id`;
+                    const [insertDeviceResult] = await db.execute<ResultSetHeader>(insertDeviceQuery, [hardwareId, selectBTResult[0]!.user_id]);
+                    if (insertDeviceResult.affectedRows < 1) {
+                        throw new Error('Failed to register device');
+                    }
+                    db.commit();
+                    isAuthenticated = true;
+                } catch (error) {
+                    console.error('[SocketManager] Database error during authentication:', error);
+                    db.rollback();
+                    ws.close();
+                    return;
+                }
 
                 if (!isAuthenticated) {
                     console.warn(`[SocketManager] Auth failed: Unknown hardwareId ${hardwareId}`);
@@ -87,7 +121,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 }
                 // handle other message types...
             } else {
-                // 客户端在认证前发送了非 'device_auth' 消息
+                // unauthenticated client sent other messages
                 console.warn('[SocketManager] Client sent data before authenticating. Closing.');
                 ws.close();
             }
