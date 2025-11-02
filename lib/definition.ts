@@ -27,7 +27,18 @@ export interface UserPayload {
     id: number,
     username: string,
 }
+
 export interface BindingTokenDAO {
     id: number,
     user_id: number
+}
+
+export interface DeviceDAO {
+    unique_hardware_id: string,
+    alias: string | null,
+}
+
+export interface DeviceUpdateAliasDTO {
+    uniqueHardwareId: string,
+    alias: string,
 }
