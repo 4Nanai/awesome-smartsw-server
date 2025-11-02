@@ -20,10 +20,10 @@ npm run dev
 ## Websocket Message Body
 ### Endpoint to Server
 #### MESSAGE_TYPE
-1. `device_register`
+1. `device_auth`
 ```json
 {
-  "type": "device_register",
+  "type": "device_auth",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
     "token": "Device binding token"
@@ -48,16 +48,13 @@ npm run dev
   }
 }
 ```
-3. `endpoint_command`
+3. `endpoint_state`
 ```json
 {
-  "type": "endpoint_command",
+  "type": "endpoint_state",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
-    "command": {
-      "type": "Command type",
-      "data": "Command data"
-    }
+    "state": true
   }
 }
 ```
@@ -83,8 +80,57 @@ npm run dev
     "uniqueHardwareId": "Endpoint MAC address",
     "command": {
       "type": "Command type",
+      "state": true,
       "data": "Command data"
     }
+  }
+}
+```
+
+### User to Server
+#### MESSAGE_TYPE
+1. `user_auth`
+```json
+{
+  "type": "user_auth",
+  "payload": {
+    "token": "User jwt token"
+  }
+}
+```
+
+2. `user_command`
+```json
+{
+  "type": "user_command",
+  "payload": {
+    "uniqueHardwareId": "Endpoint MAC address",
+    "command": {
+      "type": "Command type",
+      "state": true,
+      "data": "Command data"
+    }
+  }
+}
+```
+
+
+### Server to User
+#### MESSAGE_TYPE
+1. `auth_success`
+```json
+{
+    "type": "auth_success",
+    "message": "User authentication successful."
+}
+```
+2. `endpoint_state`
+```json
+{
+  "type": "endpoint_state",
+  "payload": {
+    "uniqueHardwareId": "Endpoint MAC address",
+    "state": true
   }
 }
 ```
