@@ -1,10 +1,21 @@
 export interface WebSocketMessageDTO {
-    type: string,
+    type: "device_auth" | "data_report" | "endpoint_state" | "user_auth" | "user_command" | "auth_success",
     payload?: {
         uniqueHardwareId: string,
         token?: string,
+        state?: boolean
+        command?: {
+            type: string,
+            state?: boolean
+            data?: boolean,
+        },
+        sensor?: {
+            type: string,
+            data: any,
+        }
         [key: string]: any,
     },
+    message?: string,
 }
 
 export interface UserRegisterDTO {

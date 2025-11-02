@@ -1,6 +1,6 @@
-import { WebSocketServer, WebSocket } from 'ws';
-import type { Server as HttpServer } from 'http';
-import type { IncomingMessage } from 'http';
+import {WebSocketServer, WebSocket} from 'ws';
+import type {Server as HttpServer} from 'http';
+import type {IncomingMessage} from 'http';
 import {BindingTokenDAO, WebSocketMessageDTO} from "./definition";
 import db from "./db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
@@ -24,7 +24,7 @@ const AUTH_TIMEOUT_MS = 10000;
  * @param httpServer The HTTP server to attach the WebSocket server to.
  */
 export function initWebSocketServer(httpServer: HttpServer) {
-    const wss = new WebSocketServer({ server: httpServer });
+    const wss = new WebSocketServer({server: httpServer});
 
     wss.on('connection', (ws: AuthenticatedWebSocket, req: IncomingMessage) => {
         console.log(`[SocketManager] Client connected from ${req.socket.remoteAddress}`);
@@ -66,17 +66,25 @@ export function initWebSocketServer(httpServer: HttpServer) {
                     // Start transaction
                     await db.beginTransaction();
 
-                    const selectBindingTokenQuery = `SELECT id, user_id FROM binding_tokens WHERE token = ? AND is_used = 0 AND expires_at > NOW()`;
+                    const selectBindingTokenQuery = `SELECT id, user_id
+                                                     FROM binding_tokens
+                                                     WHERE token = ?
+                                                       AND is_used = 0
+                                                       AND expires_at > NOW()`;
                     const [selectBTResult] = await db.execute<RowDataPacket[]>(selectBindingTokenQuery, [token]) as [BindingTokenDAO[], any];
                     if (selectBTResult.length !== 1) {
                         throw new Error('Invalid or expired token');
                     }
-                    const updateBindingTokenQuery = `UPDATE binding_tokens SET is_used = 1 WHERE id = ?`;
+                    const updateBindingTokenQuery = `UPDATE binding_tokens
+                                                     SET is_used = 1
+                                                     WHERE id = ?`;
                     const [updateBTResult] = await db.execute<ResultSetHeader>(updateBindingTokenQuery, [selectBTResult[0]!.id]);
                     if (updateBTResult.affectedRows !== 1) {
                         throw new Error('Failed to mark token as used');
                     }
-                    const insertDeviceQuery = `INSERT INTO devices (unique_hardware_id, user_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE unique_hardware_id = unique_hardware_id`;
+                    const insertDeviceQuery = `INSERT INTO devices (unique_hardware_id, user_id)
+                                               VALUES (?, ?)
+                                               ON DUPLICATE KEY UPDATE unique_hardware_id = unique_hardware_id`;
                     const [insertDeviceResult] = await db.execute<ResultSetHeader>(insertDeviceQuery, [hardwareId, selectBTResult[0]!.user_id]);
                     if (insertDeviceResult.affectedRows < 1) {
                         throw new Error('Failed to register device');
@@ -111,7 +119,12 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 ws.hardwareId = hardwareId;
                 deviceConnectionMap.set(hardwareId, ws);
 
-                ws.send(JSON.stringify({ type: 'auth_success', message: 'Authentication successful.' }));
+                // send success response
+                const response: WebSocketMessageDTO = {
+                    type: 'auth_success',
+                    message: 'Authentication successful.'
+                };
+                ws.send(JSON.stringify(response));
                 return;
             }
 
@@ -137,18 +150,72 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 ws.userId = userId;
                 userConnectionMap.set(userId.toString(), ws);
 
-                ws.send(JSON.stringify({ type: 'auth_success', message: 'User authentication successful.' }));
+                // send success response
+                const response: WebSocketMessageDTO = {
+                    type: 'auth_success',
+                    message: 'User authentication successful.'
+                };
+                ws.send(JSON.stringify(response));
                 return;
             }
 
             // handle other message types
             if (ws.hardwareId) {
-                // handle data report
+                // handle endpoint-side messages
                 if (data.type === 'data_report') {
                     console.log(`[SocketManager] Received data from ${ws.hardwareId}:`, data.payload);
                     // TODO: handle data report
                 }
-                // handle other message types...
+                // handle commands
+                if (data.type === 'endpoint_state' && data.payload?.state) {
+                    console.log(`[SocketManager] Received command for ${ws.hardwareId}:`, data.payload);
+                    try {
+                        const selectUserIdQuery = `SELECT user_id
+                                                   FROM devices
+                                                   WHERE unique_hardware_id = ?`;
+                        const [userId] = await db.execute<RowDataPacket[]>(selectUserIdQuery, [ws.hardwareId]) as [{
+                            user_id: number
+                        }[], any];
+                        if (userId.length !== 1) {
+                            throw new Error('Device not registered');
+                        }
+                        const userSocket = userConnectionMap.get(userId[0]!.user_id.toString());
+                        if (userSocket && userSocket.readyState === WebSocket.OPEN) {
+                            const response: WebSocketMessageDTO = {
+                                type: 'endpoint_state',
+                                payload: {
+                                    uniqueHardwareId: ws.hardwareId,
+                                    state: data.payload.state,
+                                },
+                            }
+                            userSocket.send(JSON.stringify(response));
+                        } else {
+                            console.warn(`[SocketManager] User ${userId[0]!.user_id} not connected. Cannot forward command.`);
+                        }
+                    } catch (error) {
+                        console.error('[SocketManager] Error forwarding command to user:', error);
+                    }
+                }
+            } else if (ws.userId) {
+                // handle user-side messages
+                if (data.type === 'user_command' && data.payload?.command) {
+                    console.log(`[SocketManager] User ${ws.userId} sent command:`, data.payload.command);
+                    const target = data.payload.uniqueHardwareId;
+                    // forward command to device
+                    const deviceSocket = deviceConnectionMap.get(target);
+                    if (deviceSocket && deviceSocket.readyState === WebSocket.OPEN) {
+                        const commandMessage: WebSocketMessageDTO = {
+                            type: 'user_command',
+                            payload: {
+                                uniqueHardwareId: target,
+                                command: data.payload.command,
+                            },
+                        };
+                        deviceSocket.send(JSON.stringify(commandMessage));
+                    } else {
+                        console.warn(`[SocketManager] Device ${target} not connected. Cannot forward command.`);
+                    }
+                }
             } else {
                 // unauthenticated client sent other messages
                 console.warn('[SocketManager] Client sent data before authenticating. Closing.');
