@@ -1,5 +1,5 @@
-export interface WebSocketMessageDTO {
-    type: "device_auth" | "data_report" | "endpoint_state" | "user_auth" | "user_command" | "auth_success",
+export interface EndpointMessageDTO {
+    type: "device_auth" | "data_report" | "endpoint_state" | "user_command" | "auth_success",
     payload?: {
         uniqueHardwareId: string,
         token?: string,
@@ -13,6 +13,22 @@ export interface WebSocketMessageDTO {
             type: string,
             data: any,
         }
+        [key: string]: any,
+    },
+    message?: string,
+}
+
+export interface UserMessageDTO {
+    type: "endpoint_state" | "user_auth" | "user_command" | "auth_success",
+    payload?: {
+        uniqueHardwareId?: string,
+        token?: string,
+        state?: boolean,
+        command?: {
+            type: string,
+            state?: boolean,
+            data?: boolean,
+        },
         [key: string]: any,
     },
     message?: string,

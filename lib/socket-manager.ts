@@ -1,7 +1,7 @@
 import {WebSocketServer, WebSocket} from 'ws';
 import type {Server as HttpServer} from 'http';
 import type {IncomingMessage} from 'http';
-import {BindingTokenDAO, WebSocketMessageDTO} from "./definition";
+import {BindingTokenDAO, EndpointMessageDTO, UserMessageDTO} from "./definition";
 import db from "./db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
 import {verifyToken} from "./jwt";
@@ -39,7 +39,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
 
         // handle incoming messages
         ws.on('message', async (message: Buffer) => {
-            let data: WebSocketMessageDTO;
+            let data: EndpointMessageDTO | UserMessageDTO;
             try {
                 data = JSON.parse(message.toString());
                 if (typeof data !== 'object' || data === null || !data.type) {
@@ -120,7 +120,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 deviceConnectionMap.set(hardwareId, ws);
 
                 // send success response
-                const response: WebSocketMessageDTO = {
+                const response: EndpointMessageDTO = {
                     type: 'auth_success',
                     message: 'Authentication successful.'
                 };
@@ -151,7 +151,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 userConnectionMap.set(userId.toString(), ws);
 
                 // send success response
-                const response: WebSocketMessageDTO = {
+                const response: EndpointMessageDTO = {
                     type: 'auth_success',
                     message: 'User authentication successful.'
                 };
@@ -181,7 +181,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
                         }
                         const userSocket = userConnectionMap.get(userId[0]!.user_id.toString());
                         if (userSocket && userSocket.readyState === WebSocket.OPEN) {
-                            const response: WebSocketMessageDTO = {
+                            const response: EndpointMessageDTO = {
                                 type: 'endpoint_state',
                                 payload: {
                                     uniqueHardwareId: ws.hardwareId,
@@ -200,11 +200,11 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 // handle user-side messages
                 if (data.type === 'user_command' && data.payload?.command) {
                     console.log(`[SocketManager] User ${ws.userId} sent command:`, data.payload.command);
-                    const target = data.payload.uniqueHardwareId;
+                    const target = data.payload.uniqueHardwareId!;
                     // forward command to device
                     const deviceSocket = deviceConnectionMap.get(target);
                     if (deviceSocket && deviceSocket.readyState === WebSocket.OPEN) {
-                        const commandMessage: WebSocketMessageDTO = {
+                        const commandMessage: EndpointMessageDTO = {
                             type: 'user_command',
                             payload: {
                                 uniqueHardwareId: target,
@@ -233,7 +233,15 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 } else {
                     console.log(`[SocketManager] Stale connection for ${ws.hardwareId} closed.`);
                 }
-            } else {
+            } else if (ws.userId) {
+                if (userConnectionMap.get(ws.userId.toString()) === ws) {
+                    userConnectionMap.delete(ws.userId.toString());
+                    console.log(`[SocketManager] User ${ws.userId} disconnected. (Code: ${code}, Reason: ${reason})`);
+                } else {
+                    console.log(`[SocketManager] Stale connection for user ${ws.userId} closed.`);
+                }
+            }
+            else {
                 console.log('[SocketManager] Unauthenticated client disconnected.');
             }
         });
