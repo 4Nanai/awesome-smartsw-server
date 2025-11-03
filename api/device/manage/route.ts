@@ -12,7 +12,11 @@ DeviceManageRouter.get("/", async (req, res) => {
         const selectDevicesQuery = `SELECT unique_hardware_id, alias FROM devices WHERE user_id = ?`;
         const [devices] = await db.execute<RowDataPacket[]>(selectDevicesQuery, [userId]) as [DeviceDAO[], any];
         const deviceDTO: DeviceDTO[] = devices.map((device) => {
-            const status = deviceConnectionMap.has(device.unique_hardware_id);
+            const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
+            let status: "online" | "offline" = "offline";
+            if (deviceSocket && deviceSocket.readyState === 1) {
+                status = "online";
+            }
             return {
                 ...device,
                 status,

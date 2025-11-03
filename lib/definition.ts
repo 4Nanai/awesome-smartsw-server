@@ -1,9 +1,9 @@
 export interface EndpointMessageDTO {
-    type: "device_auth" | "data_report" | "endpoint_state" | "user_command" | "auth_success",
+    type: "device_auth" | "data_report" | "endpoint_state" | "query_endpoint_state" | "user_command" | "auth_success",
     payload?: {
         uniqueHardwareId: string,
         token?: string,
-        state?: boolean
+        state?: "on" | "off" | "online" | "offline" | "error",
         command?: {
             type: string,
             state?: boolean
@@ -19,11 +19,11 @@ export interface EndpointMessageDTO {
 }
 
 export interface UserMessageDTO {
-    type: "endpoint_state" | "user_auth" | "user_command" | "auth_success",
+    type: "user_auth" | "user_command" | "auth_success" | "query_endpoint_state" | "endpoint_state",
     payload?: {
         uniqueHardwareId?: string,
         token?: string,
-        state?: boolean,
+        state?: "on" | "off" | "online" | "offline" | "error",
         command?: {
             type: string,
             state?: boolean,
@@ -68,7 +68,7 @@ export interface DeviceDAO {
 export interface DeviceDTO {
     unique_hardware_id: string,
     alias: string | null,
-    status: boolean,
+    status: "online" | "offline",
 }
 
 export interface DeviceUpdateAliasDTO {

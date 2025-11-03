@@ -1,7 +1,7 @@
 import {WebSocketServer, WebSocket} from 'ws';
 import type {Server as HttpServer} from 'http';
 import type {IncomingMessage} from 'http';
-import {BindingTokenDAO, EndpointMessageDTO, UserMessageDTO} from "./definition";
+import {BindingTokenDAO, DeviceDAO, EndpointMessageDTO, UserMessageDTO} from "./definition";
 import db from "./db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
 import {verifyToken} from "./jwt";
@@ -159,7 +159,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 return;
             }
 
-            // handle other message types
+            // handle message from endpoint
             if (ws.hardwareId) {
                 // handle endpoint-side messages
                 if (data.type === 'data_report') {
@@ -196,8 +196,9 @@ export function initWebSocketServer(httpServer: HttpServer) {
                         console.error('[SocketManager] Error forwarding command to user:', error);
                     }
                 }
-            } else if (ws.userId) {
-                // handle user-side messages
+            }
+            // handle message from user
+            else if (ws.userId) {
                 if (data.type === 'user_command' && data.payload?.command) {
                     console.log(`[SocketManager] User ${ws.userId} sent command:`, data.payload.command);
                     const target = data.payload.uniqueHardwareId!;
@@ -216,7 +217,45 @@ export function initWebSocketServer(httpServer: HttpServer) {
                         console.warn(`[SocketManager] Device ${target} not connected. Cannot forward command.`);
                     }
                 }
-            } else {
+                if (data.type === 'query_endpoint_state') {
+                    // query devices from db
+                    try {
+                        const selectDeviceQuery = `SELECT unique_hardware_id, alias FROM devices WHERE user_id = ?`;
+                        const [devices] = await db.execute<RowDataPacket[]>(selectDeviceQuery, [ws.userId]) as [DeviceDAO[], any];
+                        devices.map((device) => {
+                            if (deviceConnectionMap.has(device.unique_hardware_id)) {
+                                const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
+                                // send query to device
+                                if (deviceSocket && deviceSocket.readyState === WebSocket.OPEN) {
+                                    const message: EndpointMessageDTO = {
+                                        type: 'query_endpoint_state',
+                                        payload: {
+                                            uniqueHardwareId: device.unique_hardware_id,
+                                        },
+                                    };
+                                    deviceSocket.send(JSON.stringify(message));
+                                }
+                                // device is offline
+                                else {
+                                    console.log(`[SocketManager] Device ${device.unique_hardware_id} socket not open.`);
+                                    const message: UserMessageDTO = {
+                                        type: 'endpoint_state',
+                                        payload: {
+                                            uniqueHardwareId: device.unique_hardware_id,
+                                            state: "offline",
+                                        },
+                                    };
+                                    ws.send(JSON.stringify(message));
+                                }
+                            }
+                        });
+                    } catch (error) {
+                        console.error('[SocketManager] Error querying endpoint states:', error);
+                    }
+                }
+            }
+            // unauthenticated client
+            else {
                 // unauthenticated client sent other messages
                 console.warn('[SocketManager] Client sent data before authenticating. Closing.');
                 ws.close();

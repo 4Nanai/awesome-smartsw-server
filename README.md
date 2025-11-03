@@ -86,6 +86,15 @@ npm run dev
   }
 }
 ```
+3. `query_endpoint_state`
+```json
+{
+  "type": "query_endpoint_state",
+  "payload": {
+    "uniqueHardwareId": "Endpoint MAC address"
+  }
+}
+```
 
 ### User to Server
 #### MESSAGE_TYPE
@@ -114,6 +123,15 @@ npm run dev
 }
 ```
 
+3. `query_endpoint_state`
+```json
+{
+  "type": "query_endpoint_state",
+  "payload": {
+    "uniqueHardwareId": "Endpoint MAC address(Optional)"
+  }
+}
+```
 
 ### Server to User
 #### MESSAGE_TYPE
