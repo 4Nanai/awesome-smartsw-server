@@ -65,7 +65,13 @@ export interface DeviceDAO {
     alias: string | null,
 }
 
+export interface DeviceDTO {
+    unique_hardware_id: string,
+    alias: string | null,
+    status: boolean,
+}
+
 export interface DeviceUpdateAliasDTO {
-    uniqueHardwareId: string,
+    unique_hardware_id: string,
     alias: string,
 }
