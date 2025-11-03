@@ -54,7 +54,7 @@ npm run dev
   "type": "endpoint_state",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
-    "state": true
+    "state": "on" | "off" | "online" | "offline" | "error",
   }
 }
 ```
@@ -80,7 +80,6 @@ npm run dev
     "uniqueHardwareId": "Endpoint MAC address",
     "command": {
       "type": "Command type",
-      "state": true,
       "data": "Command data"
     }
   }
@@ -116,7 +115,6 @@ npm run dev
     "uniqueHardwareId": "Endpoint MAC address",
     "command": {
       "type": "Command type",
-      "state": true,
       "data": "Command data"
     }
   }
@@ -148,7 +146,7 @@ npm run dev
   "type": "endpoint_state",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
-    "state": true
+    "state": "on" | "off" | "online" | "offline" | "error",
   }
 }
 ```
