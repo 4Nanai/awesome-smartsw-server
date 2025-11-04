@@ -1,7 +1,7 @@
 import {Router} from "express";
 import db from "../../../lib/db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
-import {DeviceDAO, DeviceDTO, DeviceUpdateAliasDTO} from "../../../lib/definition";
+import {DeviceInfoDAO, DeviceDTO, DeviceUpdateAliasDTO} from "../../../lib/definition";
 import {deviceConnectionMap} from "../../../lib/socket-manager";
 
 const DeviceManageRouter = Router();
@@ -10,7 +10,7 @@ DeviceManageRouter.get("/", async (req, res) => {
     try {
         const userId = req.user!.id;
         const selectDevicesQuery = `SELECT unique_hardware_id, alias FROM devices WHERE user_id = ?`;
-        const [devices] = await db.execute<RowDataPacket[]>(selectDevicesQuery, [userId]) as [DeviceDAO[], any];
+        const [devices] = await db.execute<RowDataPacket[]>(selectDevicesQuery, [userId]) as [DeviceInfoDAO[], any];
         const deviceDTO: DeviceDTO[] = devices.map((device) => {
             const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
             let status: "online" | "offline" = "offline";

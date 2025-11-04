@@ -1,5 +1,5 @@
 import {AuthenticatedWebSocket, deviceConnectionMap, userConnectionMap} from "../socket-manager";
-import {BindingTokenDAO, DeviceDAO, EndpointMessageDTO, UserMessageDTO} from "../definition";
+import {BindingTokenDAO, DeviceBindingDAO, DeviceInfoDAO, EndpointMessageDTO, UserMessageDTO} from "../definition";
 import db from "../db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
 import {verifyToken} from "../jwt";
@@ -14,6 +14,9 @@ async function handleAuthentication(ws: AuthenticatedWebSocket, data: EndpointMe
             break;
         case 'user_auth':
             await handleUserAuth(ws, data as UserMessageDTO, authTimeout);
+            break;
+        case 'device_reconnect':
+            await handleDeviceReconnect(ws, data as EndpointMessageDTO, authTimeout);
             break;
         default:
             console.warn('[SocketManager] Client sent non-auth data before authenticating. Closing.');
@@ -90,6 +93,63 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
         userSocket.send(JSON.stringify({type: 'new_device_connected', payload: {token: token}}));
     } else {
         console.warn(`[SocketManager] User ${userId} not connected. Cannot notify about new device.`);
+    }
+}
+
+async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointMessageDTO, authTimeout: NodeJS.Timeout) {
+    if (!data.payload?.uniqueHardwareId) {
+        console.warn('[SocketManager] Device reconnect failed: Missing hardwareId');
+        ws.close();
+        return;
+    }
+
+    const hardwareId = data.payload.uniqueHardwareId;
+
+    // auth device
+    let user_id: number;
+    try {
+        const selectDeviceQuery = `SELECT user_id, unique_hardware_id FROM devices WHERE unique_hardware_id = ?`;
+        const [result] = await db.execute(selectDeviceQuery, [hardwareId]) as [DeviceBindingDAO[], any];
+        if (result.length !== 1) {
+            console.warn(`[SocketManager] Device reconnect failed: Device ${hardwareId} not registered`);
+            ws.close();
+            return;
+        }
+        user_id = result[0]!.user_id;
+    } catch (error) {
+        console.error('[SocketManager] Database error during device reconnection:', error);
+        ws.close();
+        return;
+    }
+
+    console.log(`[SocketManager] Device ${hardwareId} reconnected.`);
+    clearTimeout(authTimeout);
+
+    // handle stale connection
+    if (deviceConnectionMap.has(hardwareId)) {
+        console.log(`[SocketManager] Found stale connection for ${hardwareId}. Terminating it.`);
+        deviceConnectionMap.get(hardwareId)?.terminate();
+    }
+
+    // register new connection
+    ws.hardwareId = hardwareId;
+    deviceConnectionMap.set(hardwareId, ws);
+    // reply to device
+    ws.send(JSON.stringify({type: 'auth_success', message: 'Device reconnection successful.'}));
+
+    // notify user about device reconnection
+    const userSocket = userConnectionMap.get(user_id.toString());
+    if (userSocket && userSocket.readyState === WebSocket.OPEN) {
+        const message: UserMessageDTO = {
+            type: 'endpoint_state',
+            payload: {
+                uniqueHardwareId: hardwareId,
+                state: "online",
+            },
+        };
+        userSocket.send(JSON.stringify(message));
+    } else {
+        console.warn(`[SocketManager] User ${user_id} not connected. Cannot notify about device reconnection.`);
     }
 }
 
@@ -207,7 +267,7 @@ async function handleUserMessage(ws: AuthenticatedWebSocket, data: UserMessageDT
             console.log(`[SocketManager] User ${ws.userId} querying all endpoint states.`);
             try {
                 const selectDeviceQuery = `SELECT unique_hardware_id, alias FROM devices WHERE user_id = ?`;
-                const [devices] = await db.execute<RowDataPacket[]>(selectDeviceQuery, [ws.userId]) as [DeviceDAO[], any];
+                const [devices] = await db.execute<RowDataPacket[]>(selectDeviceQuery, [ws.userId]) as [DeviceInfoDAO[], any];
 
                 for (const device of devices) {
                     const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
