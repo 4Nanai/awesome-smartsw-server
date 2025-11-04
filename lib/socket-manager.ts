@@ -63,41 +63,44 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 // TODO: query database to verify hardwareId
                 let isAuthenticated = false;
                 let userId: number | null = null;
+                const connection = await db.getConnection();
                 try {
                     // Start transaction
-                    await db.beginTransaction();
+                    await connection.beginTransaction();
 
                     const selectBindingTokenQuery = `SELECT id, user_id
                                                      FROM binding_tokens
                                                      WHERE token = ?
                                                        AND is_used = 0
                                                        AND expires_at > NOW()`;
-                    const [selectBTResult] = await db.execute<RowDataPacket[]>(selectBindingTokenQuery, [token]) as [BindingTokenDAO[], any];
+                    const [selectBTResult] = await connection.execute<RowDataPacket[]>(selectBindingTokenQuery, [token]) as [BindingTokenDAO[], any];
                     if (selectBTResult.length !== 1) {
                         throw new Error('Invalid or expired token');
                     }
                     const updateBindingTokenQuery = `UPDATE binding_tokens
                                                      SET is_used = 1
                                                      WHERE id = ?`;
-                    const [updateBTResult] = await db.execute<ResultSetHeader>(updateBindingTokenQuery, [selectBTResult[0]!.id]);
+                    const [updateBTResult] = await connection.execute<ResultSetHeader>(updateBindingTokenQuery, [selectBTResult[0]!.id]);
                     if (updateBTResult.affectedRows !== 1) {
                         throw new Error('Failed to mark token as used');
                     }
                     const insertDeviceQuery = `INSERT INTO devices (unique_hardware_id, user_id)
                                                VALUES (?, ?)
                                                ON DUPLICATE KEY UPDATE unique_hardware_id = unique_hardware_id`;
-                    const [insertDeviceResult] = await db.execute<ResultSetHeader>(insertDeviceQuery, [hardwareId, selectBTResult[0]!.user_id]);
+                    const [insertDeviceResult] = await connection.execute<ResultSetHeader>(insertDeviceQuery, [hardwareId, selectBTResult[0]!.user_id]);
                     if (insertDeviceResult.affectedRows < 1) {
                         throw new Error('Failed to register device');
                     }
-                    db.commit();
+                    await connection.commit();
                     userId = selectBTResult[0]!.user_id;
                     isAuthenticated = true;
                 } catch (error) {
                     console.error('[SocketManager] Database error during authentication:', error);
-                    db.rollback();
+                    await connection.rollback();
                     ws.close();
                     return;
+                } finally {
+                    connection.release();
                 }
 
                 if (!isAuthenticated || userId === null) {
