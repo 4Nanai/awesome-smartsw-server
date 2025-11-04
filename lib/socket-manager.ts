@@ -60,7 +60,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
                     ws.close();
                     return;
                 }
-                // TODO: query database to verify hardwareId
+
                 let isAuthenticated = false;
                 let userId: number | null = null;
                 const connection = await db.getConnection();
@@ -84,10 +84,10 @@ export function initWebSocketServer(httpServer: HttpServer) {
                     if (updateBTResult.affectedRows !== 1) {
                         throw new Error('Failed to mark token as used');
                     }
-                    const insertDeviceQuery = `INSERT INTO devices (unique_hardware_id, user_id)
-                                               VALUES (?, ?)
+                    const insertDeviceQuery = `INSERT INTO devices (unique_hardware_id, user_id, alias)
+                                               VALUES (?, ?, ?)
                                                ON DUPLICATE KEY UPDATE unique_hardware_id = unique_hardware_id`;
-                    const [insertDeviceResult] = await connection.execute<ResultSetHeader>(insertDeviceQuery, [hardwareId, selectBTResult[0]!.user_id]);
+                    const [insertDeviceResult] = await connection.execute<ResultSetHeader>(insertDeviceQuery, [hardwareId, selectBTResult[0]!.user_id, `New Device ${hardwareId.substring(0, 5)}`]);
                     if (insertDeviceResult.affectedRows < 1) {
                         throw new Error('Failed to register device');
                     }
