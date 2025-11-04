@@ -140,7 +140,16 @@ npm run dev
     "message": "User authentication successful."
 }
 ```
-2. `endpoint_state`
+2. `new_device_connected`
+```json
+{
+    "type": "new_device_connected",
+    "payload": {
+        "token": "Device binding token"
+    }
+}
+```
+3. `endpoint_state`
 ```json
 {
   "type": "endpoint_state",

@@ -18,6 +18,10 @@ app.use(express.json());
 app.get('/', (req, res) => {
     res.send('Express Server is running. WebSocket is active on the same port.');
 });
+app.post("/", (req, res) => {
+    console.log("Received POST request:", req.body);
+    res.json({ message: "POST request received", data: req.body });
+})
 
 app.use("/api/user/register", UserRegisterRouter);
 app.use("/api/user/login", UserLoginRouter);

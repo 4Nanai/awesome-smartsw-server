@@ -62,6 +62,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 }
                 // TODO: query database to verify hardwareId
                 let isAuthenticated = false;
+                let userId: number | null = null;
                 try {
                     // Start transaction
                     await db.beginTransaction();
@@ -90,6 +91,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
                         throw new Error('Failed to register device');
                     }
                     db.commit();
+                    userId = selectBTResult[0]!.user_id;
                     isAuthenticated = true;
                 } catch (error) {
                     console.error('[SocketManager] Database error during authentication:', error);
@@ -98,7 +100,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
                     return;
                 }
 
-                if (!isAuthenticated) {
+                if (!isAuthenticated || userId === null) {
                     console.warn(`[SocketManager] Auth failed: Unknown hardwareId ${hardwareId}`);
                     ws.close();
                     return;
@@ -125,6 +127,20 @@ export function initWebSocketServer(httpServer: HttpServer) {
                     message: 'Authentication successful.'
                 };
                 ws.send(JSON.stringify(response));
+
+                // send success response to user
+                const userSocket = userConnectionMap.get(userId.toString());
+                const userResponse: UserMessageDTO = {
+                    type: 'new_device_connected',
+                    payload: {
+                        token: token,
+                    }
+                };
+                if (userSocket && userSocket.readyState === WebSocket.OPEN) {
+                    userSocket?.send(JSON.stringify(userResponse));
+                } else {
+                    console.warn(`[SocketManager] User ${userId} not connected. Cannot notify about new device.`);
+                }
                 return;
             }
 
@@ -220,7 +236,9 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 if (data.type === 'query_endpoint_state') {
                     // query devices from db
                     try {
-                        const selectDeviceQuery = `SELECT unique_hardware_id, alias FROM devices WHERE user_id = ?`;
+                        const selectDeviceQuery = `SELECT unique_hardware_id, alias
+                                                   FROM devices
+                                                   WHERE user_id = ?`;
                         const [devices] = await db.execute<RowDataPacket[]>(selectDeviceQuery, [ws.userId]) as [DeviceDAO[], any];
                         devices.map((device) => {
                             if (deviceConnectionMap.has(device.unique_hardware_id)) {
@@ -279,8 +297,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 } else {
                     console.log(`[SocketManager] Stale connection for user ${ws.userId} closed.`);
                 }
-            }
-            else {
+            } else {
                 console.log('[SocketManager] Unauthenticated client disconnected.');
             }
         });
