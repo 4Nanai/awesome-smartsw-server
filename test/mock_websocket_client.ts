@@ -31,7 +31,7 @@ client.on('open', () => {
         type: "device_auth",
         payload: {
             uniqueHardwareId: uniqueHardwareId,
-            token: "2bb81633-3dd7-4cba-9185-fbbfe0dde61d",
+            token: "7ca852e3-2dc6-471b-a9c3-78b4826bb7bc",
         }
     }
     client.send(JSON.stringify(authMessage));
