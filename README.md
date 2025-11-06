@@ -21,6 +21,8 @@ npm run dev
 ### Endpoint to Server
 #### MESSAGE_TYPE
 1. `device_auth`
+- `uniqueHardwareId` must be provided
+- `token` must be provided
 ```json
 {
   "type": "device_auth",
@@ -31,7 +33,9 @@ npm run dev
 }
 ```
 2. `device_reconnect`
+
 Used when endpoint device needs to reconnect to the server
+- `uniqueHardwareId` must be provided
 ```json
 {
   "type": "device_reconnect",
@@ -41,6 +45,10 @@ Used when endpoint device needs to reconnect to the server
 }
 ```
 3. `data_report`
+
+Use to report all types of sensor data
+- `type` must be provided
+- `data` must be provided
 ```json
 {
   "type": "data_report",
@@ -50,21 +58,23 @@ Used when endpoint device needs to reconnect to the server
       {
         "type": "Sensor type",
         "data": "Sensor data"
-      },
-      {
-        ...
       }
     ]
   }
 }
 ```
 4. `endpoint_state`
+
+Endpoint reports its current state
+- `uniqueHardwareId` must be provided
+- `state` must be provided
+- `state` can be `on`, `off`, and `error`.
 ```json
 {
   "type": "endpoint_state",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
-    "state": "on" | "off" | "online" | "offline" | "error",
+    "state": "on"
   }
 }
 ```
@@ -73,6 +83,8 @@ Used when endpoint device needs to reconnect to the server
 ### Server to Endpoint
 #### MESSAGE_TYPE
 1. `auth_success`
+
+Sent when device authentication is successful
 ```json
 {
   "type": "auth_success",
@@ -83,20 +95,30 @@ Used when endpoint device needs to reconnect to the server
 }
 ```
 2. `user_command`
+
+Sent when user sends command to endpoint
+- `uniqueHardwareId`, `type` and `state` must be provided
+- `type` can be `toggle`...(TBD)
+- `state` must be `boolean`
+- `data` is optional
 ```json
 {
   "type": "user_command",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
     "command": {
-      "type": "toggle" | "...",
-      "state": true | false,
+      "type": "toggle",
+      "state": true,
       "data": "Command data"
     }
   }
 }
 ```
 3. `query_endpoint_state`
+
+Sent when user queries endpoint state
+- `uniqueHardwareId` is optional
+- If not provided, server should return all endpoint states associated with the user
 ```json
 {
   "type": "query_endpoint_state",
@@ -109,6 +131,9 @@ Used when endpoint device needs to reconnect to the server
 ### User to Server
 #### MESSAGE_TYPE
 1. `user_auth`
+
+Sent when user authenticates
+- `token` must be provided
 ```json
 {
   "type": "user_auth",
@@ -119,14 +144,20 @@ Used when endpoint device needs to reconnect to the server
 ```
 
 2. `user_command`
+
+Sent when user sends command to endpoint
+- `uniqueHardwareId`, `type` and `state` must be provided
+- `type` can be `toggle`...(TBD)
+- `state` must be `boolean`
+- `data` is optional
 ```json
 {
   "type": "user_command",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
     "command": {
-      "type": "toggle" | "...",
-      "state": true | false,
+      "type": "toggle",
+      "state": true,
       "data": "Command data"
     }
   }
@@ -134,6 +165,10 @@ Used when endpoint device needs to reconnect to the server
 ```
 
 3. `query_endpoint_state`
+
+Sent when user queries endpoint state
+- `uniqueHardwareId` is optional
+- If not provided, server should return all endpoint states associated with the user
 ```json
 {
   "type": "query_endpoint_state",
@@ -146,6 +181,8 @@ Used when endpoint device needs to reconnect to the server
 ### Server to User
 #### MESSAGE_TYPE
 1. `auth_success`
+
+Sent when user authentication is successful
 ```json
 {
     "type": "auth_success",
@@ -153,6 +190,9 @@ Used when endpoint device needs to reconnect to the server
 }
 ```
 2. `new_device_connected`
+
+Sent when a new device is connected to the user's account
+- `token` must be provided
 ```json
 {
     "type": "new_device_connected",
@@ -162,12 +202,16 @@ Used when endpoint device needs to reconnect to the server
 }
 ```
 3. `endpoint_state`
+
+Sent when server returns endpoint state(s)
+- `uniqueHardwareId` and `state` must be provided
+- `state` can be `on`, `off`, `online`, `offline`, and `error`.
 ```json
 {
   "type": "endpoint_state",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
-    "state": "on" | "off" | "online" | "offline" | "error",
+    "state": "on"
   }
 }
 ```
