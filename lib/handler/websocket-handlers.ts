@@ -82,6 +82,7 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
 
     // register new connection
     ws.hardwareId = hardwareId;
+    ws.userId = userId;
     deviceConnectionMap.set(hardwareId, ws);
 
     // reply to device
@@ -133,6 +134,7 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
 
     // register new connection
     ws.hardwareId = hardwareId;
+    ws.userId = user_id;
     deviceConnectionMap.set(hardwareId, ws);
     // reply to device
     ws.send(JSON.stringify({type: 'auth_success', message: 'Device reconnection successful.'}));
@@ -264,34 +266,61 @@ async function handleUserMessage(ws: AuthenticatedWebSocket, data: UserMessageDT
             break;
 
         case 'query_endpoint_state':
-            console.log(`[SocketManager] User ${ws.userId} querying all endpoint states.`);
-            try {
-                const selectDeviceQuery = `SELECT unique_hardware_id, alias FROM devices WHERE user_id = ?`;
-                const [devices] = await db.execute<RowDataPacket[]>(selectDeviceQuery, [ws.userId]) as [DeviceInfoDAO[], any];
+            const queryAll = !data.payload?.uniqueHardwareId;
+            if (queryAll) {
+                console.log(`[SocketManager] User ${ws.userId} querying all endpoint states.`);
+                try {
+                    const selectDeviceQuery = `SELECT unique_hardware_id, alias
+                                               FROM devices
+                                               WHERE user_id = ?`;
+                    const [devices] = await db.execute<RowDataPacket[]>(selectDeviceQuery, [ws.userId]) as [DeviceInfoDAO[], any];
 
-                for (const device of devices) {
-                    const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
-                    if (deviceSocket && deviceSocket.readyState === WebSocket.OPEN) {
-                        // device online, send query message
-                        const message: EndpointMessageDTO = {
-                            type: 'query_endpoint_state',
-                            payload: { uniqueHardwareId: device.unique_hardware_id },
-                        };
-                        deviceSocket.send(JSON.stringify(message));
-                    } else {
-                        // device offline, reply offline state
-                        const message: UserMessageDTO = {
-                            type: 'endpoint_state',
-                            payload: {
-                                uniqueHardwareId: device.unique_hardware_id,
-                                state: "offline",
-                            },
-                        };
-                        ws.send(JSON.stringify(message));
+                    for (const device of devices) {
+                        const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
+                        if (deviceSocket && deviceSocket.readyState === WebSocket.OPEN) {
+                            // device online, send query message
+                            const message: EndpointMessageDTO = {
+                                type: 'query_endpoint_state',
+                                payload: {uniqueHardwareId: device.unique_hardware_id},
+                            };
+                            deviceSocket.send(JSON.stringify(message));
+                        } else {
+                            // device offline, reply offline state
+                            const message: UserMessageDTO = {
+                                type: 'endpoint_state',
+                                payload: {
+                                    uniqueHardwareId: device.unique_hardware_id,
+                                    state: "offline",
+                                },
+                            };
+                            ws.send(JSON.stringify(message));
+                        }
                     }
+                } catch (error) {
+                    console.error('[SocketManager] Error querying endpoint states:', error);
                 }
-            } catch (error) {
-                console.error('[SocketManager] Error querying endpoint states:', error);
+            } else {
+                console.log(`[SocketManager] User ${ws.userId} querying endpoint state for ${data.payload?.uniqueHardwareId}.`);
+                const targetId = data.payload!.uniqueHardwareId!;
+                const deviceSocket = deviceConnectionMap.get(targetId);
+                if (deviceSocket && deviceSocket.readyState === WebSocket.OPEN) {
+                    // device online, send query message
+                    const message: EndpointMessageDTO = {
+                        type: 'query_endpoint_state',
+                        payload: {uniqueHardwareId: targetId},
+                    };
+                    deviceSocket.send(JSON.stringify(message));
+                } else {
+                    // device offline, reply offline state
+                    const message: UserMessageDTO = {
+                        type: 'endpoint_state',
+                        payload: {
+                            uniqueHardwareId: targetId,
+                            state: "offline",
+                        },
+                    };
+                    ws.send(JSON.stringify(message));
+                }
             }
             break;
 
@@ -301,10 +330,32 @@ async function handleUserMessage(ws: AuthenticatedWebSocket, data: UserMessageDT
     }
 }
 
+function handleDeviceDisconnection(ws: AuthenticatedWebSocket) {
+    if (!ws.hardwareId || !ws.userId) return;
+
+    const hardwareId = ws.hardwareId;
+    const userId = ws.userId;
+
+    const userSocket = userConnectionMap.get(userId.toString());
+    if (userSocket && userSocket.readyState === WebSocket.OPEN) {
+        const message: UserMessageDTO = {
+            type: 'endpoint_state',
+            payload: {
+                uniqueHardwareId: hardwareId,
+                state: "offline",
+            },
+        };
+        userSocket.send(JSON.stringify(message));
+    } else {
+        console.log(`[SocketManager] User ${userId} not connected. Cannot notify about device disconnection.`);
+    }
+}
+
 export {
     handleAuthentication,
     handleDeviceAuth,
     handleUserAuth,
     handleDeviceMessage,
-    handleUserMessage
+    handleUserMessage,
+    handleDeviceDisconnection
 };

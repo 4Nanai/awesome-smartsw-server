@@ -2,7 +2,12 @@ import {WebSocketServer, WebSocket} from 'ws';
 import type {Server as HttpServer} from 'http';
 import type {IncomingMessage} from 'http';
 import {EndpointMessageDTO, UserMessageDTO} from "./definition";
-import {handleAuthentication, handleDeviceMessage, handleUserMessage} from "./handler/websocket-handlers";
+import {
+    handleAuthentication,
+    handleDeviceDisconnection,
+    handleDeviceMessage,
+    handleUserMessage
+} from "./handler/websocket-handlers";
 
 // extend WebSocket to include hardwareId
 export interface AuthenticatedWebSocket extends WebSocket {
@@ -70,6 +75,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 if (deviceConnectionMap.get(ws.hardwareId) === ws) {
                     deviceConnectionMap.delete(ws.hardwareId);
                     console.log(`[SocketManager] Device ${ws.hardwareId} disconnected. (Code: ${code}, Reason: ${reason})`);
+                    handleDeviceDisconnection(ws);
                 } else {
                     console.log(`[SocketManager] Stale connection for ${ws.hardwareId} closed.`);
                 }

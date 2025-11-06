@@ -89,7 +89,8 @@ Used when endpoint device needs to reconnect to the server
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
     "command": {
-      "type": "Command type",
+      "type": "toggle" | "...",
+      "state": true | false,
       "data": "Command data"
     }
   }
@@ -124,7 +125,8 @@ Used when endpoint device needs to reconnect to the server
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
     "command": {
-      "type": "Command type",
+      "type": "toggle" | "...",
+      "state": true | false,
       "data": "Command data"
     }
   }

@@ -31,7 +31,7 @@ DeviceManageRouter.get("/", async (req, res) => {
     }
 });
 
-DeviceManageRouter.post("/", async (req, res) => {
+DeviceManageRouter.put("/", async (req, res) => {
     try {
         const userId = req.user!.id;
         const updateDTO: DeviceUpdateAliasDTO = req.body;

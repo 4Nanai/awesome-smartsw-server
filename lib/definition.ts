@@ -5,9 +5,9 @@ export interface EndpointMessageDTO {
         token?: string,
         state?: "on" | "off" | "online" | "offline" | "error",
         command?: {
-            type: string,
+            type: "toggle" | string,
             state?: boolean
-            data?: boolean,
+            data?: string,
         },
         sensor?: {
             type: string,
@@ -25,9 +25,9 @@ export interface UserMessageDTO {
         token?: string,
         state?: "on" | "off" | "online" | "offline" | "error",
         command?: {
-            type: string,
+            type: "toggle" | string,
             state?: boolean,
-            data?: boolean,
+            data?: string,
         },
         [key: string]: any,
     },
