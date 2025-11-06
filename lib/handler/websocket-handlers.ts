@@ -82,6 +82,7 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
 
     // register new connection
     ws.hardwareId = hardwareId;
+    ws.userId = userId;
     deviceConnectionMap.set(hardwareId, ws);
 
     // reply to device
@@ -133,6 +134,7 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
 
     // register new connection
     ws.hardwareId = hardwareId;
+    ws.userId = user_id;
     deviceConnectionMap.set(hardwareId, ws);
     // reply to device
     ws.send(JSON.stringify({type: 'auth_success', message: 'Device reconnection successful.'}));
@@ -301,10 +303,32 @@ async function handleUserMessage(ws: AuthenticatedWebSocket, data: UserMessageDT
     }
 }
 
+function handleDeviceDisconnection(ws: AuthenticatedWebSocket) {
+    if (!ws.hardwareId || !ws.userId) return;
+
+    const hardwareId = ws.hardwareId;
+    const userId = ws.userId;
+
+    const userSocket = userConnectionMap.get(userId.toString());
+    if (userSocket && userSocket.readyState === WebSocket.OPEN) {
+        const message: UserMessageDTO = {
+            type: 'endpoint_state',
+            payload: {
+                uniqueHardwareId: hardwareId,
+                state: "offline",
+            },
+        };
+        userSocket.send(JSON.stringify(message));
+    } else {
+        console.log(`[SocketManager] User ${userId} not connected. Cannot notify about device disconnection.`);
+    }
+}
+
 export {
     handleAuthentication,
     handleDeviceAuth,
     handleUserAuth,
     handleDeviceMessage,
-    handleUserMessage
+    handleUserMessage,
+    handleDeviceDisconnection
 };
