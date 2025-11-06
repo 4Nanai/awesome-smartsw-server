@@ -1,13 +1,11 @@
 import {WebSocketServer, WebSocket} from 'ws';
 import type {Server as HttpServer} from 'http';
 import type {IncomingMessage} from 'http';
-import {BindingTokenDAO, DeviceDAO, EndpointMessageDTO, UserMessageDTO} from "./definition";
-import db from "./db";
-import {ResultSetHeader, RowDataPacket} from "mysql2";
-import {verifyToken} from "./jwt";
+import {EndpointMessageDTO, UserMessageDTO} from "./definition";
+import {handleAuthentication, handleDeviceMessage, handleUserMessage} from "./handler/websocket-handlers";
 
 // extend WebSocket to include hardwareId
-interface AuthenticatedWebSocket extends WebSocket {
+export interface AuthenticatedWebSocket extends WebSocket {
     hardwareId?: string;
     userId?: number;
 }
@@ -29,9 +27,9 @@ export function initWebSocketServer(httpServer: HttpServer) {
     wss.on('connection', (ws: AuthenticatedWebSocket, req: IncomingMessage) => {
         console.log(`[SocketManager] Client connected from ${req.socket.remoteAddress}`);
 
-        // If the client does not authenticate within the timeout, close the connection
         const authTimeout = setTimeout(() => {
-            if (!ws.hardwareId) {
+            // close connection if not authenticated in time
+            if (!ws.hardwareId && !ws.userId) {
                 console.log('[SocketManager] Client failed to authenticate in time. Closing.');
                 ws.terminate();
             }
@@ -51,235 +49,17 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 return;
             }
 
-            // authenticate device
-            if (data.type === 'device_auth' && data.payload?.uniqueHardwareId) {
-                const hardwareId = data.payload.uniqueHardwareId;
-                const token = data.payload.token;
-                if (!token) {
-                    console.warn('[SocketManager] Auth failed: Missing token');
-                    ws.close();
-                    return;
-                }
-
-                let isAuthenticated = false;
-                let userId: number | null = null;
-                const connection = await db.getConnection();
-                try {
-                    // Start transaction
-                    await connection.beginTransaction();
-
-                    const selectBindingTokenQuery = `SELECT id, user_id
-                                                     FROM binding_tokens
-                                                     WHERE token = ?
-                                                       AND is_used = 0
-                                                       AND expires_at > NOW()`;
-                    const [selectBTResult] = await connection.execute<RowDataPacket[]>(selectBindingTokenQuery, [token]) as [BindingTokenDAO[], any];
-                    if (selectBTResult.length !== 1) {
-                        throw new Error('Invalid or expired token');
-                    }
-                    const updateBindingTokenQuery = `UPDATE binding_tokens
-                                                     SET is_used = 1
-                                                     WHERE id = ?`;
-                    const [updateBTResult] = await connection.execute<ResultSetHeader>(updateBindingTokenQuery, [selectBTResult[0]!.id]);
-                    if (updateBTResult.affectedRows !== 1) {
-                        throw new Error('Failed to mark token as used');
-                    }
-                    const insertDeviceQuery = `INSERT INTO devices (unique_hardware_id, user_id, alias)
-                                               VALUES (?, ?, ?)
-                                               ON DUPLICATE KEY UPDATE unique_hardware_id = unique_hardware_id`;
-                    const [insertDeviceResult] = await connection.execute<ResultSetHeader>(insertDeviceQuery, [hardwareId, selectBTResult[0]!.user_id, `New Device ${hardwareId.substring(0, 5)}`]);
-                    if (insertDeviceResult.affectedRows < 1) {
-                        throw new Error('Failed to register device');
-                    }
-                    await connection.commit();
-                    userId = selectBTResult[0]!.user_id;
-                    isAuthenticated = true;
-                } catch (error) {
-                    console.error('[SocketManager] Database error during authentication:', error);
-                    await connection.rollback();
-                    ws.close();
-                    return;
-                } finally {
-                    connection.release();
-                }
-
-                if (!isAuthenticated || userId === null) {
-                    console.warn(`[SocketManager] Auth failed: Unknown hardwareId ${hardwareId}`);
-                    ws.close();
-                    return;
-                }
-
-                // Authentication successful
-                console.log(`[SocketManager] Device ${hardwareId} authenticated.`);
-                clearTimeout(authTimeout); // clear the auth timeout
-
-                // handle stale connections
-                if (deviceConnectionMap.has(hardwareId)) {
-                    console.log(`[SocketManager] Found stale connection for ${hardwareId}. Terminating it.`);
-                    const oldSocket = deviceConnectionMap.get(hardwareId);
-                    oldSocket?.terminate();
-                }
-
-                // register the new connection
-                ws.hardwareId = hardwareId;
-                deviceConnectionMap.set(hardwareId, ws);
-
-                // send success response
-                const response: EndpointMessageDTO = {
-                    type: 'auth_success',
-                    message: 'Authentication successful.'
-                };
-                ws.send(JSON.stringify(response));
-
-                // send success response to user
-                const userSocket = userConnectionMap.get(userId.toString());
-                const userResponse: UserMessageDTO = {
-                    type: 'new_device_connected',
-                    payload: {
-                        token: token,
-                    }
-                };
-                if (userSocket && userSocket.readyState === WebSocket.OPEN) {
-                    userSocket?.send(JSON.stringify(userResponse));
+            try {
+                if (ws.hardwareId) {
+                    await handleDeviceMessage(ws, data as EndpointMessageDTO);
+                } else if (ws.userId) {
+                    await handleUserMessage(ws, data as UserMessageDTO);
                 } else {
-                    console.warn(`[SocketManager] User ${userId} not connected. Cannot notify about new device.`);
+                    await handleAuthentication(ws, data, authTimeout);
                 }
-                return;
-            }
-
-            if (data.type === 'user_auth' && data.payload?.token) {
-                const token = data.payload.token;
-                const userPayload = verifyToken(token);
-                if (!userPayload) {
-                    console.warn('[SocketManager] User auth failed: Invalid token');
-                    ws.close();
-                    return;
-                }
-                const userId = userPayload.id;
-                console.log(`[SocketManager] User ${userId} authenticated.`);
-                clearTimeout(authTimeout); // clear the auth timeout
-
-                // handle stale connections
-                if (userConnectionMap.has(userId.toString())) {
-                    console.log(`[SocketManager] Found stale connection for user ${userId}. Terminating it.`);
-                    const oldSocket = userConnectionMap.get(userId.toString());
-                    oldSocket?.terminate();
-                }
-                // register the new connection
-                ws.userId = userId;
-                userConnectionMap.set(userId.toString(), ws);
-
-                // send success response
-                const response: EndpointMessageDTO = {
-                    type: 'auth_success',
-                    message: 'User authentication successful.'
-                };
-                ws.send(JSON.stringify(response));
-                return;
-            }
-
-            // handle message from endpoint
-            if (ws.hardwareId) {
-                // handle endpoint-side messages
-                if (data.type === 'data_report') {
-                    console.log(`[SocketManager] Received data from ${ws.hardwareId}:`, data.payload);
-                    // TODO: handle data report
-                }
-                // handle commands
-                if (data.type === 'endpoint_state' && data.payload?.state) {
-                    console.log(`[SocketManager] Received command for ${ws.hardwareId}:`, data.payload);
-                    try {
-                        const selectUserIdQuery = `SELECT user_id
-                                                   FROM devices
-                                                   WHERE unique_hardware_id = ?`;
-                        const [userId] = await db.execute<RowDataPacket[]>(selectUserIdQuery, [ws.hardwareId]) as [{
-                            user_id: number
-                        }[], any];
-                        if (userId.length !== 1) {
-                            throw new Error('Device not registered');
-                        }
-                        const userSocket = userConnectionMap.get(userId[0]!.user_id.toString());
-                        if (userSocket && userSocket.readyState === WebSocket.OPEN) {
-                            const response: EndpointMessageDTO = {
-                                type: 'endpoint_state',
-                                payload: {
-                                    uniqueHardwareId: ws.hardwareId,
-                                    state: data.payload.state,
-                                },
-                            }
-                            userSocket.send(JSON.stringify(response));
-                        } else {
-                            console.warn(`[SocketManager] User ${userId[0]!.user_id} not connected. Cannot forward command.`);
-                        }
-                    } catch (error) {
-                        console.error('[SocketManager] Error forwarding command to user:', error);
-                    }
-                }
-            }
-            // handle message from user
-            else if (ws.userId) {
-                if (data.type === 'user_command' && data.payload?.command) {
-                    console.log(`[SocketManager] User ${ws.userId} sent command:`, data.payload.command);
-                    const target = data.payload.uniqueHardwareId!;
-                    // forward command to device
-                    const deviceSocket = deviceConnectionMap.get(target);
-                    if (deviceSocket && deviceSocket.readyState === WebSocket.OPEN) {
-                        const commandMessage: EndpointMessageDTO = {
-                            type: 'user_command',
-                            payload: {
-                                uniqueHardwareId: target,
-                                command: data.payload.command,
-                            },
-                        };
-                        deviceSocket.send(JSON.stringify(commandMessage));
-                    } else {
-                        console.warn(`[SocketManager] Device ${target} not connected. Cannot forward command.`);
-                    }
-                }
-                if (data.type === 'query_endpoint_state') {
-                    // query devices from db
-                    try {
-                        const selectDeviceQuery = `SELECT unique_hardware_id, alias
-                                                   FROM devices
-                                                   WHERE user_id = ?`;
-                        const [devices] = await db.execute<RowDataPacket[]>(selectDeviceQuery, [ws.userId]) as [DeviceDAO[], any];
-                        devices.map((device) => {
-                            if (deviceConnectionMap.has(device.unique_hardware_id)) {
-                                const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
-                                // send query to device
-                                if (deviceSocket && deviceSocket.readyState === WebSocket.OPEN) {
-                                    const message: EndpointMessageDTO = {
-                                        type: 'query_endpoint_state',
-                                        payload: {
-                                            uniqueHardwareId: device.unique_hardware_id,
-                                        },
-                                    };
-                                    deviceSocket.send(JSON.stringify(message));
-                                }
-                                // device is offline
-                                else {
-                                    console.log(`[SocketManager] Device ${device.unique_hardware_id} socket not open.`);
-                                    const message: UserMessageDTO = {
-                                        type: 'endpoint_state',
-                                        payload: {
-                                            uniqueHardwareId: device.unique_hardware_id,
-                                            state: "offline",
-                                        },
-                                    };
-                                    ws.send(JSON.stringify(message));
-                                }
-                            }
-                        });
-                    } catch (error) {
-                        console.error('[SocketManager] Error querying endpoint states:', error);
-                    }
-                }
-            }
-            // unauthenticated client
-            else {
-                // unauthenticated client sent other messages
-                console.warn('[SocketManager] Client sent data before authenticating. Closing.');
-                ws.close();
+            } catch (error) {
+                console.error(`[SocketManager] Error handling message type ${data.type}:`, error);
+                // ws.send(JSON.stringify({ type: 'error', message: 'Internal server error' }));
             }
         });
 

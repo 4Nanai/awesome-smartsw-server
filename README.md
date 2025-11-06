@@ -30,7 +30,17 @@ npm run dev
   }
 }
 ```
-2. `data_report`
+2. `device_reconnect`
+Used when endpoint device needs to reconnect to the server
+```json
+{
+  "type": "device_reconnect",
+  "payload" : {
+    "uniqueHardwareId": "Endpoint MAC address"
+  }
+}
+```
+3. `data_report`
 ```json
 {
   "type": "data_report",
@@ -48,7 +58,7 @@ npm run dev
   }
 }
 ```
-3. `endpoint_state`
+4. `endpoint_state`
 ```json
 {
   "type": "endpoint_state",
@@ -58,7 +68,7 @@ npm run dev
   }
 }
 ```
-4. `others` (Customized)
+5. `others` (Customized)
 
 ### Server to Endpoint
 #### MESSAGE_TYPE
