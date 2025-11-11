@@ -6,6 +6,9 @@ const SERVER_ADDRESS = 'ws://localhost:3000';
 console.log(`Try connecting to: ${SERVER_ADDRESS}`);
 
 const client = new WebSocket(SERVER_ADDRESS);
+const IS_RECONNECT = false;
+const TOKEN = "0d9b88ce-7190-47e8-b4d1-92cd66f33363";
+const UNIQUE_HARDWARE_ID = "33:95:11:0D:5D:B1";
 
 const generateRandomMacAddress = () => {
     const hexDigits = "0123456789ABCDEF";
@@ -26,16 +29,27 @@ let state: "on" | "off" = "off";
 client.on('open', () => {
     console.log('Connected to the WebSocket server.');
 
-    // After connection is open, we can send messages
-    const authMessage: EndpointMessageDTO = {
-        type: "device_auth",
-        payload: {
-            uniqueHardwareId: uniqueHardwareId,
-            token: "7ca852e3-2dc6-471b-a9c3-78b4826bb7bc",
+    if (!IS_RECONNECT) {
+        // After connection is open, we can send messages
+        const authMessage: EndpointMessageDTO = {
+            type: "device_auth",
+            payload: {
+                uniqueHardwareId: uniqueHardwareId,
+                token: TOKEN,
+            }
         }
+        client.send(JSON.stringify(authMessage));
+        console.log(`Sent authentication message: ${JSON.stringify(authMessage)}`);
+    } else {
+        const reconnectMessage: EndpointMessageDTO = {
+            type: "device_reconnect",
+            payload: {
+                uniqueHardwareId: UNIQUE_HARDWARE_ID,
+            }
+        }
+        client.send(JSON.stringify(reconnectMessage));
+        console.log(`Sent reconnection message: ${JSON.stringify(reconnectMessage)}`);
     }
-    client.send(JSON.stringify(authMessage));
-    console.log(`Sent authentication message: ${JSON.stringify(authMessage)}`);
 });
 
 // listen for messages from the server

@@ -189,7 +189,14 @@ Sent when user authentication is successful
     "message": "User authentication successful."
 }
 ```
-2. `new_device_connected`
+2. `auth_failure`
+```json
+{
+    "type": "auth_failure",
+    "message": "Invalid or expired token."
+}
+```
+3. `new_device_connected`
 
 Sent when a new device is connected to the user's account
 - `token` must be provided
@@ -201,7 +208,7 @@ Sent when a new device is connected to the user's account
     }
 }
 ```
-3. `endpoint_state`
+4. `endpoint_state`
 
 Sent when server returns endpoint state(s)
 - `uniqueHardwareId` and `state` must be provided

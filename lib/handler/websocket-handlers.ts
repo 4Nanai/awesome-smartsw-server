@@ -169,6 +169,7 @@ async function handleUserAuth(ws: AuthenticatedWebSocket, data: UserMessageDTO, 
     const userPayload = verifyToken(token);
     if (!userPayload) {
         console.warn('[SocketManager] User auth failed: Invalid token');
+        ws.send(JSON.stringify({type: 'auth_failure', message: 'Invalid or expired token.'}));
         ws.close();
         return;
     }

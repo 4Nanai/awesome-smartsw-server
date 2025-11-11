@@ -19,7 +19,7 @@ export interface EndpointMessageDTO {
 }
 
 export interface UserMessageDTO {
-    type: "user_auth" | "user_command" | "auth_success" | "new_device_connected" | "query_endpoint_state" | "endpoint_state",
+    type: "user_auth" | "user_command" | "auth_success" | "auth_failure" | "new_device_connected" | "query_endpoint_state" | "endpoint_state",
     payload?: {
         uniqueHardwareId?: string,
         token?: string,

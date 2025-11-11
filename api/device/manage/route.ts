@@ -60,10 +60,10 @@ DeviceManageRouter.put("/", async (req, res) => {
     }
 });
 
-DeviceManageRouter.delete("/", async (req, res) => {
+DeviceManageRouter.delete("/:uniqueHardwareId", async (req, res) => {
     try {
         const userId = req.user!.id;
-        const uniqueHardwareId: string = req.body.uniqueHardwareId;
+        const uniqueHardwareId = req.params.uniqueHardwareId;
         if (!uniqueHardwareId) {
             res.status(400).json({
                 error: "uniqueHardwareId is required"
