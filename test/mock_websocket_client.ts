@@ -7,8 +7,8 @@ console.log(`Try connecting to: ${SERVER_ADDRESS}`);
 
 const client = new WebSocket(SERVER_ADDRESS);
 const IS_RECONNECT = false;
-const TOKEN = "0d9b88ce-7190-47e8-b4d1-92cd66f33363";
-const UNIQUE_HARDWARE_ID = "33:95:11:0D:5D:B1";
+const TOKEN = "02ba6dfa-6db6-4874-9095-a7ffb3d58159";
+const UNIQUE_HARDWARE_ID = "06:07:C4:47:1E:BB";
 
 const generateRandomMacAddress = () => {
     const hexDigits = "0123456789ABCDEF";
@@ -63,6 +63,9 @@ client.on('message', (data: Buffer) => {
     if (message.type === "user_command") {
         handleUserCommand(message);
     }
+    if (message.type === "device_unbound") {
+        handleDeviceUnbound(message);
+    }
 });
 
 // handle connection close event
@@ -106,4 +109,8 @@ const handleUserCommand = (message: EndpointMessageDTO) => {
             client.send(JSON.stringify(response));
         }
     }
+}
+
+const handleDeviceUnbound = (message: EndpointMessageDTO) => {
+    console.log("Device has been unbound by the server.", message.message);
 }

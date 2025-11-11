@@ -9,7 +9,9 @@ const DeviceManageRouter = Router();
 DeviceManageRouter.get("/", async (req, res) => {
     try {
         const userId = req.user!.id;
-        const selectDevicesQuery = `SELECT unique_hardware_id, alias FROM devices WHERE user_id = ?`;
+        const selectDevicesQuery = `SELECT unique_hardware_id, alias
+                                    FROM devices
+                                    WHERE user_id = ?`;
         const [devices] = await db.execute<RowDataPacket[]>(selectDevicesQuery, [userId]) as [DeviceInfoDAO[], any];
         const deviceDTO: DeviceDTO[] = devices.map((device) => {
             const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
@@ -41,7 +43,10 @@ DeviceManageRouter.put("/", async (req, res) => {
             });
             return;
         }
-        const updateDeviceAliasQuery = `UPDATE devices SET alias = ? WHERE unique_hardware_id = ? AND user_id = ?`;
+        const updateDeviceAliasQuery = `UPDATE devices
+                                        SET alias = ?
+                                        WHERE unique_hardware_id = ?
+                                          AND user_id = ?`;
         const [result] = await db.execute<ResultSetHeader>(updateDeviceAliasQuery, [updateDTO.alias, updateDTO.unique_hardware_id, userId]);
         if (result.affectedRows === 0) {
             res.status(404).json({
@@ -70,7 +75,10 @@ DeviceManageRouter.delete("/:uniqueHardwareId", async (req, res) => {
             });
             return;
         }
-        const deleteDeviceQuery = `DELETE FROM devices WHERE unique_hardware_id = ? AND user_id = ?`;
+        const deleteDeviceQuery = `DELETE
+                                   FROM devices
+                                   WHERE unique_hardware_id = ?
+                                     AND user_id = ?`;
         const [result] = await db.execute<ResultSetHeader>(deleteDeviceQuery, [uniqueHardwareId, userId]);
         if (result.affectedRows === 0) {
             res.status(404).json({
@@ -81,6 +89,17 @@ DeviceManageRouter.delete("/:uniqueHardwareId", async (req, res) => {
         res.status(200).json({
             message: "Device unbound successfully"
         });
+        const ws = deviceConnectionMap.get(uniqueHardwareId);
+        if (ws) {
+            if (ws.readyState === 1) {
+                ws.send(JSON.stringify({
+                    type: "device_unbound",
+                    message: "This device has been unbound from the user account and will disconnect."
+                }));
+                ws.close();
+            }
+            deviceConnectionMap.delete(uniqueHardwareId);
+        }
     } catch (error) {
         console.error("Error unbinding device:", error);
         res.status(500).json({

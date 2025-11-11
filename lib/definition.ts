@@ -1,5 +1,5 @@
 export interface EndpointMessageDTO {
-    type: "device_auth" | "device_reconnect" | "data_report" | "endpoint_state" | "query_endpoint_state" | "user_command" | "auth_success",
+    type: "device_auth" | "device_reconnect" | "device_unbound" | "data_report" | "endpoint_state" | "query_endpoint_state" | "user_command" | "auth_success",
     payload?: {
         uniqueHardwareId: string,
         token?: string,
