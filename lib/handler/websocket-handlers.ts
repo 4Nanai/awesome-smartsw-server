@@ -87,14 +87,6 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
 
     // reply to device
     ws.send(JSON.stringify({type: 'auth_success', message: 'Authentication successful.'}));
-
-    // notify user about new device
-    const userSocket = userConnectionMap.get(userId!.toString());
-    if (userSocket && userSocket.readyState === WebSocket.OPEN) {
-        userSocket.send(JSON.stringify({type: 'new_device_connected', payload: {token: token}}));
-    } else {
-        console.warn(`[SocketManager] User ${userId} not connected. Cannot notify about new device.`);
-    }
 }
 
 async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointMessageDTO, authTimeout: NodeJS.Timeout) {

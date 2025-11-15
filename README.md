@@ -196,19 +196,7 @@ Sent when user authentication is successful
     "message": "Invalid or expired token."
 }
 ```
-3. `new_device_connected`
-
-Sent when a new device is connected to the user's account
-- `token` must be provided
-```json
-{
-    "type": "new_device_connected",
-    "payload": {
-        "token": "Device binding token"
-    }
-}
-```
-4. `endpoint_state`
+3. `endpoint_state`
 
 Sent when server returns endpoint state(s)
 - `uniqueHardwareId` and `state` must be provided
