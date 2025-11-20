@@ -1,4 +1,4 @@
-import {AuthenticatedWebSocket, deviceConnectionMap, userConnectionMap} from "../socket-manager";
+import {AuthenticatedWebSocket, deviceConnectionMap, userConnectionMap, startHeartbeat} from "../socket-manager";
 import {BindingTokenDAO, DeviceBindingDAO, DeviceInfoDAO, EndpointMessageDTO, UserMessageDTO} from "../definition";
 import db from "../db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
@@ -86,6 +86,9 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
     ws.userId = userId;
     deviceConnectionMap.set(hardwareId, ws);
 
+    // start heartbeat monitoring
+    startHeartbeat(ws);
+
     // reply to device
     ws.send(JSON.stringify({type: 'auth_success', message: 'Authentication successful.'}));
 }
@@ -129,6 +132,10 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
     ws.hardwareId = hardwareId;
     ws.userId = user_id;
     deviceConnectionMap.set(hardwareId, ws);
+
+    // start heartbeat monitoring
+    startHeartbeat(ws);
+
     // reply to device
     ws.send(JSON.stringify({type: 'auth_success', message: 'Device reconnection successful.'}));
 
@@ -180,6 +187,9 @@ async function handleUserAuth(ws: AuthenticatedWebSocket, data: UserMessageDTO, 
     // register new connection
     ws.userId = userId;
     userConnectionMap.set(userId.toString(), ws);
+
+    // start heartbeat monitoring
+    startHeartbeat(ws);
 
     // reply to user
     ws.send(JSON.stringify({type: 'auth_success', message: 'User authentication successful.'}));

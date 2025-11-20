@@ -13,6 +13,8 @@ import {
 export interface AuthenticatedWebSocket extends WebSocket {
     hardwareId?: string;
     userId?: number;
+    isAlive?: boolean;
+    heartbeatTimer?: NodeJS.Timeout;
 }
 
 // connection map to track active connections
@@ -21,6 +23,32 @@ export const userConnectionMap = new Map<string, AuthenticatedWebSocket>();
 
 // authentication timeout
 const AUTH_TIMEOUT_MS = 10000;
+
+// heartbeat configuration
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+
+/**
+ * Starts heartbeat monitoring for an authenticated WebSocket connection
+ * @param ws The authenticated WebSocket connection
+ */
+export function startHeartbeat(ws: AuthenticatedWebSocket) {
+    // clear any existing heartbeat timer
+    if (ws.heartbeatTimer) {
+        clearInterval(ws.heartbeatTimer);
+    }
+
+    ws.heartbeatTimer = setInterval(() => {
+        if (ws.isAlive === false) {
+            console.log(`[SocketManager] Heartbeat timeout for ${ws.hardwareId || `user ${ws.userId}` || 'unknown'}. Terminating.`);
+            clearInterval(ws.heartbeatTimer);
+            ws.close(1006, 'Heartbeat timeout');
+            return;
+        }
+
+        ws.isAlive = false;
+        ws.ping();
+    }, HEARTBEAT_INTERVAL);
+}
 
 /**
  * Initializes the WebSocket server and sets up connection handling.
@@ -32,6 +60,9 @@ export function initWebSocketServer(httpServer: HttpServer) {
     wss.on('connection', (ws: AuthenticatedWebSocket, req: IncomingMessage) => {
         console.log(`[SocketManager] Client connected from ${req.socket.remoteAddress}`);
 
+        // initialize heartbeat state
+        ws.isAlive = true;
+
         const authTimeout = setTimeout(() => {
             // close connection if not authenticated in time
             if (!ws.hardwareId && !ws.userId) {
@@ -39,6 +70,11 @@ export function initWebSocketServer(httpServer: HttpServer) {
                 ws.terminate();
             }
         }, AUTH_TIMEOUT_MS);
+
+        // handle pong responses
+        ws.on('pong', () => {
+            ws.isAlive = true;
+        });
 
         // handle incoming messages
         ws.on('message', async (message: Buffer) => {
@@ -71,6 +107,9 @@ export function initWebSocketServer(httpServer: HttpServer) {
         // handle connection close
         ws.on('close', (code, reason) => {
             clearTimeout(authTimeout);
+            if (ws.heartbeatTimer) {
+                clearInterval(ws.heartbeatTimer);
+            }
             if (ws.hardwareId) {
                 if (deviceConnectionMap.get(ws.hardwareId) === ws) {
                     deviceConnectionMap.delete(ws.hardwareId);
@@ -82,7 +121,7 @@ export function initWebSocketServer(httpServer: HttpServer) {
             } else if (ws.userId) {
                 if (userConnectionMap.get(ws.userId.toString()) === ws) {
                     userConnectionMap.delete(ws.userId.toString());
-                    console.log(`[SocketManager] User ${ws.userId} disconnected. (Code: ${code}, Reason: ${reason})`);
+                    console.log(`[SocketManager] User ${ws.userId} disconnected. (Code: ${code}, Reason: ${reason.toString()})`);
                 } else {
                     console.log(`[SocketManager] Stale connection for user ${ws.userId} closed.`);
                 }
