@@ -3,6 +3,7 @@ import {BindingTokenDAO, DeviceBindingDAO, DeviceInfoDAO, EndpointMessageDTO, Us
 import db from "../db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
 import {verifyToken} from "../jwt";
+import {WebSocket} from 'ws';
 
 /**
  * handle authentication messages
