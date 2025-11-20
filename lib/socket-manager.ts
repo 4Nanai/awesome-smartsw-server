@@ -93,7 +93,26 @@ export function initWebSocketServer(httpServer: HttpServer) {
 
         // handle errors
         ws.on('error', (error) => {
-            console.error('[SocketManager] WebSocket error:', error);
+            if (ws.hardwareId) {
+                console.error(`[SocketManager] WebSocket error for device ${ws.hardwareId}:`, error);
+                if (ws.userId) {
+                    const message: UserMessageDTO = {
+                        type: 'endpoint_state',
+                        payload: {
+                            uniqueHardwareId: ws.hardwareId,
+                            state: 'error'
+                        }
+                    }
+                    const userWs = userConnectionMap.get(ws.userId.toString());
+                    if (userWs && userWs.readyState === WebSocket.OPEN) {
+                        userWs.send(JSON.stringify(message));
+                    }
+                }
+            } else if (ws.userId) {
+                console.error(`[SocketManager] WebSocket error for user ${ws.userId}:`, error);
+            } else {
+                console.error('[SocketManager] WebSocket error for unauthenticated client:', error);
+            }
         });
     });
 
