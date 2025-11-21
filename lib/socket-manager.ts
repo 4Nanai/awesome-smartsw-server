@@ -41,7 +41,7 @@ export function startHeartbeat(ws: AuthenticatedWebSocket) {
         if (ws.isAlive === false) {
             console.log(`[SocketManager] Heartbeat timeout for ${ws.hardwareId || `user ${ws.userId}` || 'unknown'}. Terminating.`);
             clearInterval(ws.heartbeatTimer);
-            ws.close(1006, 'Heartbeat timeout');
+            ws.terminate();
             return;
         }
 
