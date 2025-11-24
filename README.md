@@ -48,18 +48,34 @@ Used when endpoint device needs to reconnect to the server
 
 Use to report all types of sensor data
 - `type` must be provided
-- `data` must be provided
+- `sensor` must be provided, and it should contain at least one or more sensor data object
+  - `temp_humi`: temperature and humidity sensor data (degC, RH%, UTC epoch)
+  - `pir`: PIR motion sensor data (present, UTC epoch)
+  - `radar`: Radar motion sensor data (present, UTC epoch)
+  - `sound`: Sound sensor data (UTC epoch of last detected sound)
 ```json
 {
   "type": "data_report",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
-    "sensor": [
-      {
-        "type": "Sensor type",
-        "data": "Sensor data"
+    "sensor": {
+      "temp_humi": {
+        "temperature": 25.5,
+        "humidity": 60,
+        "ts": 1625247600
+      },
+      "pir": {
+        "state": true,
+        "ts": 1625247600
+      },
+      "radar": {
+        "state": false,
+        "ts": 1625247600
+      },
+      "sound": {
+        "ts": 1625247600
       }
-    ]
+    }
   }
 }
 ```
