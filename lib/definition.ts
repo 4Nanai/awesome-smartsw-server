@@ -89,7 +89,7 @@ export interface DeviceBindingDAO {
 export interface DeviceDTO {
     unique_hardware_id: string,
     alias: string | null,
-    status: "online" | "offline",
+    status: "unknown",
 }
 
 export interface DeviceUpdateAliasDTO {

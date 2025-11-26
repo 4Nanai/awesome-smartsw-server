@@ -14,19 +14,44 @@ DeviceManageRouter.get("/", async (req, res) => {
                                     WHERE user_id = ?`;
         const [devices] = await db.execute<RowDataPacket[]>(selectDevicesQuery, [userId]) as [DeviceInfoDAO[], any];
         const deviceDTO: DeviceDTO[] = devices.map((device) => {
-            const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
-            let status: "online" | "offline" = "offline";
-            if (deviceSocket && deviceSocket.readyState === 1) {
-                status = "online";
-            }
             return {
                 ...device,
-                status,
+                status: "unknown",
             }
         });
         res.status(200).json(deviceDTO);
     } catch (error) {
         console.error("Error fetching devices:", error);
+        res.status(500).json({
+            error: "Internal Server Error"
+        });
+    }
+});
+
+DeviceManageRouter.get("/stats", async (req, res) => {
+    try {
+        const userId = req.user!.id;
+        const selectDevicesQuery = `SELECT unique_hardware_id
+                                    FROM devices
+                                    WHERE user_id = ?`;
+        const [devices] = await db.execute<RowDataPacket[]>(selectDevicesQuery, [userId]) as [DeviceInfoDAO[], any];
+        
+        const totalCount = devices.length;
+        let onlineCount = 0;
+        
+        devices.forEach((device) => {
+            const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
+            if (deviceSocket && deviceSocket.readyState === 1) {
+                onlineCount++;
+            }
+        });
+        
+        res.status(200).json({
+            total: totalCount,
+            online: onlineCount
+        });
+    } catch (error) {
+        console.error("Error fetching device stats:", error);
         res.status(500).json({
             error: "Internal Server Error"
         });
@@ -165,7 +190,6 @@ DeviceManageRouter.post("/config/automation-mode", async (req, res) => {
         ]);
         
         // Notify endpoint to update its configuration
-        
         const message: EndpointMessageDTO = {
             type: "set_automation_mode",
             payload: {
@@ -244,7 +268,6 @@ DeviceManageRouter.post("/config/presence-mode", async (req, res) => {
         ]);
         
         // Notify endpoint to update its configuration
-        
         const message: EndpointMessageDTO = {
             type: "set_presence_mode",
             payload: {
@@ -323,7 +346,6 @@ DeviceManageRouter.post("/config/sound-mode", async (req, res) => {
         ]);
         
         // Notify endpoint to update its configuration
-        
         const message: EndpointMessageDTO = {
             type: "set_sound_mode",
             payload: {
