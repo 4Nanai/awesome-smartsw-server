@@ -1,7 +1,7 @@
 import {Router} from "express";
 import db from "../../../lib/db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
-import {DeviceInfoDAO, DeviceDTO, DeviceUpdateAliasDTO} from "../../../lib/definition";
+import {DeviceInfoDAO, DeviceDTO, DeviceUpdateAliasDTO, SetAutomationModeDTO, SetPresenceModeDTO, SetSoundModeDTO, EndpointMessageDTO, DeviceConfigDAO} from "../../../lib/definition";
 import {deviceConnectionMap} from "../../../lib/socket-manager";
 
 const DeviceManageRouter = Router();
@@ -107,5 +107,242 @@ DeviceManageRouter.delete("/:uniqueHardwareId", async (req, res) => {
         });
     }
 })
+
+DeviceManageRouter.post("/config/automation-mode", async (req, res) => {
+    try {
+        const userId = req.user!.id;
+        const configDTO: SetAutomationModeDTO = req.body;
+        
+        if (!configDTO.unique_hardware_id || !configDTO.mode) {
+            res.status(400).json({
+                error: "unique_hardware_id and mode are required"
+            });
+            return;
+        }
+        
+        const validModes = ["off", "presence", "sound", "timer", "ml"];
+        if (!validModes.includes(configDTO.mode)) {
+            res.status(400).json({
+                error: "Invalid mode. Must be one of: off, presence, sound, timer, ml"
+            });
+            return;
+        }
+        
+        const verifyOwnershipQuery = `SELECT user_id FROM devices WHERE unique_hardware_id = ?`;
+        const [rows] = await db.execute<RowDataPacket[]>(verifyOwnershipQuery, [configDTO.unique_hardware_id]);
+        
+        if (rows.length === 0 || !rows[0]) {
+            res.status(404).json({
+                error: "Device not found"
+            });
+            return;
+        }
+        
+        if (rows[0].user_id !== userId) {
+            res.status(403).json({
+                error: "You do not have permission to configure this device"
+            });
+            return;
+        }
+        
+        const ws = deviceConnectionMap.get(configDTO.unique_hardware_id);
+        if (!ws || ws.readyState !== 1) {
+            res.status(503).json({
+                error: "Device is not online"
+            });
+            return;
+        }
+        
+        const upsertConfigQuery = `
+            INSERT INTO device_configs (unique_hardware_id, automation_mode)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE automation_mode = ?, updated_at = CURRENT_TIMESTAMP
+        `;
+        await db.execute<ResultSetHeader>(upsertConfigQuery, [
+            configDTO.unique_hardware_id,
+            configDTO.mode,
+            configDTO.mode
+        ]);
+        
+        // Notify endpoint to update its configuration
+        
+        const message: EndpointMessageDTO = {
+            type: "set_automation_mode",
+            payload: {
+                uniqueHardwareId: configDTO.unique_hardware_id,
+                mode: configDTO.mode
+            }
+        };
+        
+        ws.send(JSON.stringify(message));
+        
+        res.status(200).json({
+            message: "Automation mode configuration sent successfully"
+        });
+    } catch (error) {
+        console.error("Error configuring automation mode:", error);
+        res.status(500).json({
+            error: "Internal Server Error"
+        });
+    }
+});
+
+DeviceManageRouter.post("/config/presence-mode", async (req, res) => {
+    try {
+        const userId = req.user!.id;
+        const configDTO: SetPresenceModeDTO = req.body;
+        
+        if (!configDTO.unique_hardware_id || !configDTO.mode) {
+            res.status(400).json({
+                error: "unique_hardware_id and mode are required"
+            });
+            return;
+        }
+        
+        const validModes = ["pir_only", "radar_only", "fusion_or", "fusion_and"];
+        if (!validModes.includes(configDTO.mode)) {
+            res.status(400).json({
+                error: "Invalid mode. Must be one of: pir_only, radar_only, fusion_or, fusion_and"
+            });
+            return;
+        }
+        
+        const verifyOwnershipQuery = `SELECT user_id FROM devices WHERE unique_hardware_id = ?`;
+        const [rows] = await db.execute<RowDataPacket[]>(verifyOwnershipQuery, [configDTO.unique_hardware_id]);
+        
+        if (rows.length === 0 || !rows[0]) {
+            res.status(404).json({
+                error: "Device not found"
+            });
+            return;
+        }
+        
+        if (rows[0].user_id !== userId) {
+            res.status(403).json({
+                error: "You do not have permission to configure this device"
+            });
+            return;
+        }
+        
+        const ws = deviceConnectionMap.get(configDTO.unique_hardware_id);
+        if (!ws || ws.readyState !== 1) {
+            res.status(503).json({
+                error: "Device is not online"
+            });
+            return;
+        }
+        
+        const upsertConfigQuery = `
+            INSERT INTO device_configs (unique_hardware_id, presence_mode)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE presence_mode = ?, updated_at = CURRENT_TIMESTAMP
+        `;
+        await db.execute<ResultSetHeader>(upsertConfigQuery, [
+            configDTO.unique_hardware_id,
+            configDTO.mode,
+            configDTO.mode
+        ]);
+        
+        // Notify endpoint to update its configuration
+        
+        const message: EndpointMessageDTO = {
+            type: "set_presence_mode",
+            payload: {
+                uniqueHardwareId: configDTO.unique_hardware_id,
+                mode: configDTO.mode
+            }
+        };
+        
+        ws.send(JSON.stringify(message));
+        
+        res.status(200).json({
+            message: "Presence mode configuration sent successfully"
+        });
+    } catch (error) {
+        console.error("Error configuring presence mode:", error);
+        res.status(500).json({
+            error: "Internal Server Error"
+        });
+    }
+});
+
+DeviceManageRouter.post("/config/sound-mode", async (req, res) => {
+    try {
+        const userId = req.user!.id;
+        const configDTO: SetSoundModeDTO = req.body;
+        
+        if (!configDTO.unique_hardware_id || !configDTO.mode) {
+            res.status(400).json({
+                error: "unique_hardware_id and mode are required"
+            });
+            return;
+        }
+        
+        const validModes = ["noise", "clap"];
+        if (!validModes.includes(configDTO.mode)) {
+            res.status(400).json({
+                error: "Invalid mode. Must be one of: noise, clap"
+            });
+            return;
+        }
+        
+        const verifyOwnershipQuery = `SELECT user_id FROM devices WHERE unique_hardware_id = ?`;
+        const [rows] = await db.execute<RowDataPacket[]>(verifyOwnershipQuery, [configDTO.unique_hardware_id]);
+        
+        if (rows.length === 0 || !rows[0]) {
+            res.status(404).json({
+                error: "Device not found"
+            });
+            return;
+        }
+        
+        if (rows[0].user_id !== userId) {
+            res.status(403).json({
+                error: "You do not have permission to configure this device"
+            });
+            return;
+        }
+        
+        const ws = deviceConnectionMap.get(configDTO.unique_hardware_id);
+        if (!ws || ws.readyState !== 1) {
+            res.status(503).json({
+                error: "Device is not online"
+            });
+            return;
+        }
+        
+        const upsertConfigQuery = `
+            INSERT INTO device_configs (unique_hardware_id, sound_mode)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE sound_mode = ?, updated_at = CURRENT_TIMESTAMP
+        `;
+        await db.execute<ResultSetHeader>(upsertConfigQuery, [
+            configDTO.unique_hardware_id,
+            configDTO.mode,
+            configDTO.mode
+        ]);
+        
+        // Notify endpoint to update its configuration
+        
+        const message: EndpointMessageDTO = {
+            type: "set_sound_mode",
+            payload: {
+                uniqueHardwareId: configDTO.unique_hardware_id,
+                mode: configDTO.mode
+            }
+        };
+        
+        ws.send(JSON.stringify(message));
+        
+        res.status(200).json({
+            message: "Sound mode configuration sent successfully"
+        });
+    } catch (error) {
+        console.error("Error configuring sound mode:", error);
+        res.status(500).json({
+            error: "Internal Server Error"
+        });
+    }
+});
 
 export default DeviceManageRouter;

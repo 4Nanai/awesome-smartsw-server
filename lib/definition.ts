@@ -111,3 +111,13 @@ export interface SetSoundModeDTO {
     unique_hardware_id: string,
     mode: "noise" | "clap",
 }
+
+export interface DeviceConfigDAO {
+    id: number,
+    unique_hardware_id: string,
+    automation_mode: "off" | "presence" | "sound" | "timer" | "ml",
+    presence_mode: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
+    sound_mode: "noise" | "clap",
+    created_at: Date,
+    updated_at: Date,
+}
