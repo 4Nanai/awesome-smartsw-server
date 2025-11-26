@@ -111,3 +111,22 @@ CREATE TABLE IF NOT EXISTS `sound_data`
       ON UPDATE NO ACTION
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `device_configs`
+(
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `unique_hardware_id` VARCHAR(100) NOT NULL,
+  `automation_mode` ENUM('off', 'presence', 'sound', 'timer', 'ml') NOT NULL DEFAULT 'off',
+  `presence_mode` ENUM('pir_only', 'radar_only', 'fusion_or', 'fusion_and') NOT NULL DEFAULT 'fusion_or',
+  `sound_mode` ENUM('noise', 'clap') NOT NULL DEFAULT 'noise',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `unique_hardware_id_UNIQUE` (`unique_hardware_id` ASC),
+  CONSTRAINT `fk_device_config`
+    FOREIGN KEY (`unique_hardware_id`)
+      REFERENCES `devices` (`unique_hardware_id`)
+      ON DELETE CASCADE
+      ON UPDATE NO ACTION
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
