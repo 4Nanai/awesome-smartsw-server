@@ -1,5 +1,5 @@
 export interface EndpointMessageDTO {
-    type: "device_auth" | "device_reconnect" | "device_unbound" | "data_report" | "endpoint_state" | "query_endpoint_state" | "user_command" | "auth_success",
+    type: "device_auth" | "device_reconnect" | "device_unbound" | "data_report" | "endpoint_state" | "query_endpoint_state" | "user_command" | "auth_success" | "set_automation_mode" | "set_presence_mode" | "set_sound_mode",
     payload?: {
         uniqueHardwareId: string,
         token?: string,
@@ -10,6 +10,7 @@ export interface EndpointMessageDTO {
             data?: string,
         },
         sensor?: SensorDataDAO,
+        mode?: string,
     },
     message?: string,
 }
@@ -88,10 +89,35 @@ export interface DeviceBindingDAO {
 export interface DeviceDTO {
     unique_hardware_id: string,
     alias: string | null,
-    status: "online" | "offline",
+    status: "unknown",
 }
 
 export interface DeviceUpdateAliasDTO {
     unique_hardware_id: string,
     alias: string,
+}
+
+export interface SetAutomationModeDTO {
+    unique_hardware_id: string,
+    mode: "off" | "presence" | "sound" | "timer" | "ml",
+}
+
+export interface SetPresenceModeDTO {
+    unique_hardware_id: string,
+    mode: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
+}
+
+export interface SetSoundModeDTO {
+    unique_hardware_id: string,
+    mode: "noise" | "clap",
+}
+
+export interface DeviceConfigDAO {
+    id: number,
+    unique_hardware_id: string,
+    automation_mode: "off" | "presence" | "sound" | "timer" | "ml",
+    presence_mode: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
+    sound_mode: "noise" | "clap",
+    created_at: Date,
+    updated_at: Date,
 }
