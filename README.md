@@ -144,6 +144,62 @@ Sent when user queries endpoint state
 }
 ```
 
+4. `set_automation_mode`
+
+Configure automation mode for endpoint device behavior
+- `uniqueHardwareId` must be provided
+- `mode` must be one of: `off`, `presence`, `sound`, `timer`, `ml`
+  - `off`: Disable automation
+  - `presence`: Triggered by human presence detection
+  - `sound`: Triggered by sound detection
+  - `timer`: Triggered by scheduled timer
+  - `ml`: Triggered by machine learning model
+```json
+{
+  "type": "set_automation_mode",
+  "payload": {
+    "uniqueHardwareId": "Endpoint MAC address",
+    "mode": "presence"
+  }
+}
+```
+
+5. `set_presence_mode`
+
+Configure human presence detection mode
+- `uniqueHardwareId` must be provided
+- `mode` must be one of: `pir_only`, `radar_only`, `fusion_or`, `fusion_and`
+  - `pir_only`: Use PIR sensor only
+  - `radar_only`: Use radar sensor only
+  - `fusion_or`: Trigger when either PIR or radar detects
+  - `fusion_and`: Trigger when both PIR and radar detect simultaneously
+```json
+{
+  "type": "set_presence_mode",
+  "payload": {
+    "uniqueHardwareId": "Endpoint MAC address",
+    "mode": "fusion_or"
+  }
+}
+```
+
+6. `set_sound_mode`
+
+Configure sound detection mode
+- `uniqueHardwareId` must be provided
+- `mode` must be one of: `noise`, `clap`
+  - `noise`: Trigger on any loud noise
+  - `clap`: Trigger on clap detection
+```json
+{
+  "type": "set_sound_mode",
+  "payload": {
+    "uniqueHardwareId": "Endpoint MAC address",
+    "mode": "clap"
+  }
+}
+```
+
 ### User to Server
 #### MESSAGE_TYPE
 1. `user_auth`
