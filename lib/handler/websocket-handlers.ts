@@ -1,5 +1,5 @@
 import {AuthenticatedWebSocket, deviceConnectionMap, userConnectionMap, startHeartbeat} from "../socket-manager";
-import {BindingTokenDAO, DeviceBindingDAO, DeviceInfoDAO, EndpointMessageDTO, UserMessageDTO} from "../definition";
+import {BindingTokenDAO, DeviceBindingDAO, DeviceInfoDAO, EndpointMessageDTO, SensorDataDAO, UserMessageDTO} from "../definition";
 import db from "../db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
 import {verifyToken} from "../jwt";
@@ -202,8 +202,14 @@ async function handleUserAuth(ws: AuthenticatedWebSocket, data: UserMessageDTO, 
 async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMessageDTO) {
     switch (data.type) {
         case 'data_report':
-            console.log(`[SocketManager] Received data from ${ws.hardwareId}:`, data.payload);
+            console.log(`[SocketManager] Received sensor data from ${ws.hardwareId}:`, data.payload);
             // TODO: handle data report
+            if (data.payload?.sensor) {
+                await handleSensorData(ws.hardwareId!, data.payload.sensor);
+            }
+            else {
+                console.error('[SocketManager] No sensor data found in data report');
+            }
             break;
 
         case 'endpoint_state':
@@ -352,6 +358,41 @@ function handleDeviceDisconnection(ws: AuthenticatedWebSocket) {
         userSocket.send(JSON.stringify(message));
     } else {
         console.log(`[SocketManager] User ${userId} not connected. Cannot notify about device disconnection.`);
+    }
+}
+
+async function handleSensorData(hardwareId: string, data: SensorDataDAO) {
+    if (data.temp_humi) {
+        console.log(`[SocketManager] Received temperature: ${data.temp_humi.temperature}, humidity: ${data.temp_humi.humidity}, timestamp: ${data.temp_humi.ts}`);
+        const insertTempHumiQuary = `INSERT INTO temp_humi_data (unique_hardware_id, temperature, humidity, ts) VALUES (?, ?, ?, ?)`;
+        const [result] = await db.execute<ResultSetHeader>(insertTempHumiQuary, [hardwareId, data.temp_humi.temperature, data.temp_humi.humidity, data.temp_humi.ts]);
+        if (result.affectedRows !== 1) {
+            console.error('[SocketManager] Failed to insert temperature and humidity data into database');
+        }
+    }
+    if (data.pir) {
+        console.log(`[SocketManager] Received PIR state: ${data.pir.state}, timestamp: ${data.pir.ts}`);
+        const insertPirQuary = `INSERT INTO pir_data (unique_hardware_id, state, ts) VALUES (?, ?, ?)`;
+        const [result] = await db.execute<ResultSetHeader>(insertPirQuary, [hardwareId, data.pir.state, data.pir.ts]);
+        if (result.affectedRows !== 1) {
+            console.error('[SocketManager] Failed to insert PIR data into database');
+        }
+    }
+    if (data.radar) {
+        console.log(`[SocketManager] Received radar state: ${data.radar.state}, timestamp: ${data.radar.ts}`);
+        const insertRadarQuary = `INSERT INTO radar_data (unique_hardware_id, state, ts) VALUES (?, ?, ?)`;
+        const [result] = await db.execute<ResultSetHeader>(insertRadarQuary, [hardwareId, data.radar.state, data.radar.ts]);
+        if (result.affectedRows !== 1) {
+            console.error('[SocketManager] Failed to insert radar data into database');
+        }
+    }
+    if (data.sound) {
+        console.log(`[SocketManager] Received sound timestamp: ${data.sound.ts}`);
+        const insertSoundQuary = `INSERT INTO sound_data (unique_hardware_id, ts) VALUES (?, ?)`;
+        const [result] = await db.execute<ResultSetHeader>(insertSoundQuary, [hardwareId, data.sound.ts]);
+        if (result.affectedRows !== 1) {
+            console.error('[SocketManager] Failed to insert sound data into database');
+        }
     }
 }
 

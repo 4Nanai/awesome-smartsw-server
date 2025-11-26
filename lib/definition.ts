@@ -9,11 +9,7 @@ export interface EndpointMessageDTO {
             state?: boolean
             data?: string,
         },
-        sensor?: {
-            type: string,
-            data: any,
-        }
-        [key: string]: any,
+        sensor?: SensorDataDAO,
     },
     message?: string,
 }
@@ -32,6 +28,25 @@ export interface UserMessageDTO {
         [key: string]: any,
     },
     message?: string,
+}
+
+export interface SensorDataDAO {
+    temp_humi?: {
+        temperature: number,
+        humidity: number,
+        ts: number,
+    },
+    pir?: {
+        state: boolean,
+        ts: number,
+    },
+    radar?: {
+        state: boolean,
+        ts: number,
+    },
+    sound?: {
+        ts: number,
+    },
 }
 
 export interface UserRegisterDTO {

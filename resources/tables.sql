@@ -47,3 +47,67 @@ CREATE TABLE IF NOT EXISTS `binding_tokens`
             ON UPDATE NO ACTION
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `temp_humi_data`
+(
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `unique_hardware_id` VARCHAR(100) NOT NULL,
+  `temperature` DECIMAL(5, 2) NOT NULL,
+  `humidity` DECIMAL(5, 2) NOT NULL,
+  `ts`         BIGINT       NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `idx_unique_hardware_id_ts_UNIQUE` (`unique_hardware_id` ASC, `ts` ASC),
+  CONSTRAINT `fk_device_temp_humi`
+    FOREIGN KEY (`unique_hardware_id`)
+      REFERENCES `devices` (`unique_hardware_id`)
+      ON DELETE CASCADE
+      ON UPDATE NO ACTION
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `pir_data`
+(
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `unique_hardware_id` VARCHAR(100) NOT NULL,
+  `state` BOOLEAN NOT NULL,
+  `ts` BIGINT NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `idx_unique_hardware_id_ts_UNIQUE` (`unique_hardware_id` ASC, `ts` ASC),
+  CONSTRAINT `fk_device_pir`
+    FOREIGN KEY (`unique_hardware_id`)
+      REFERENCES `devices` (`unique_hardware_id`)
+      ON DELETE CASCADE
+      ON UPDATE NO ACTION
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `radar_data`
+(
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `unique_hardware_id` VARCHAR(100) NOT NULL,
+  `state` BOOLEAN NOT NULL,
+  `ts` BIGINT NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `idx_unique_hardware_id_ts_UNIQUE` (`unique_hardware_id` ASC, `ts` ASC),
+  CONSTRAINT `fk_device_radar`
+    FOREIGN KEY (`unique_hardware_id`)
+      REFERENCES `devices` (`unique_hardware_id`)
+      ON DELETE CASCADE
+      ON UPDATE NO ACTION
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `sound_data`
+(
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `unique_hardware_id` VARCHAR(100) NOT NULL,
+  `ts` BIGINT NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `idx_unique_hardware_id_ts_UNIQUE` (`unique_hardware_id` ASC, `ts` ASC),
+  CONSTRAINT `fk_device_sound`
+    FOREIGN KEY (`unique_hardware_id`)
+      REFERENCES `devices` (`unique_hardware_id`)
+      ON DELETE CASCADE
+      ON UPDATE NO ACTION
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
