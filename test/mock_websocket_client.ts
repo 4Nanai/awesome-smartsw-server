@@ -1,5 +1,5 @@
 import WebSocket from 'ws';
-import {EndpointMessageDTO} from "../lib/definition";
+import {EndpointMessageDTO, SensorDataDAO} from "../lib/definition";
 
 const SERVER_ADDRESS = 'ws://localhost:3000';
 
@@ -7,7 +7,7 @@ console.log(`Try connecting to: ${SERVER_ADDRESS}`);
 
 const client = new WebSocket(SERVER_ADDRESS);
 const IS_RECONNECT = false;
-const TOKEN = "02ba6dfa-6db6-4874-9095-a7ffb3d58159";
+const TOKEN = "0ffc011d-e449-4ca1-a1e6-8674f6acecc0";
 const UNIQUE_HARDWARE_ID = "06:07:C4:47:1E:BB";
 
 const generateRandomMacAddress = () => {
@@ -24,6 +24,104 @@ const generateRandomMacAddress = () => {
 
 const uniqueHardwareId = generateRandomMacAddress();
 let state: "on" | "off" = "off";
+let dataReportInterval: NodeJS.Timeout | null = null;
+
+/**
+ * Generate sensor data
+ */
+const generateSensorData = (): SensorDataDAO => {
+    const now = Date.now();
+    const sensorData: SensorDataDAO = {};
+
+    // Randomly include 1-4 types of sensor data
+    const includeTemp = Math.random() > 0.3;
+    const includePir = Math.random() > 0.7;
+    const includeRadar = Math.random() > 0.7;
+    const includeSound = Math.random() > 0.8;
+
+    if (includeTemp) {
+        // Temperature: 15-35°C, Humidity: 30-80%
+        sensorData.temp_humi = {
+            temperature: Math.round((Math.random() * 20 + 15) * 10) / 10, // 15-35°C
+            humidity: Math.round(Math.random() * 50 + 30), // 30-80%
+            ts: now
+        };
+    }
+
+    if (includePir) {
+        // PIR sensor state (human infrared detection)
+        sensorData.pir = {
+            state: Math.random() > 0.6,
+            ts: now
+        };
+    }
+
+    if (includeRadar) {
+        // Radar sensor state
+        sensorData.radar = {
+            state: Math.random() > 0.7,
+            ts: now
+        };
+    }
+
+    if (includeSound) {
+        // Sound detection
+        sensorData.sound = {
+            ts: now
+        };
+    }
+
+    return sensorData;
+};
+
+/**
+ * Report sensor data
+ */
+const reportSensorData = () => {
+    if (client.readyState !== WebSocket.OPEN) {
+        console.log('WebSocket not connected, skip data report');
+        return;
+    }
+
+    const sensorData = generateSensorData();
+    const dataReportMessage: EndpointMessageDTO = {
+        type: "data_report",
+        payload: {
+            uniqueHardwareId: uniqueHardwareId,
+            sensor: sensorData
+        }
+    };
+
+    client.send(JSON.stringify(dataReportMessage));
+    console.log(`Sent sensor data report:`, JSON.stringify(sensorData, null, 2));
+
+    // Schedule next report, interval 20s ± 5s
+    const nextInterval = (20 + (Math.random() * 10 - 5)) * 1000;
+    dataReportInterval = setTimeout(reportSensorData, nextInterval);
+    console.log(`Next data report scheduled in ${Math.round(nextInterval / 1000)}s`);
+};
+
+/**
+ * Start data reporting
+ */
+const startDataReporting = () => {
+    if (dataReportInterval) {
+        clearTimeout(dataReportInterval);
+    }
+    dataReportInterval = setTimeout(reportSensorData, 3000);
+    console.log('Data reporting started, first report in 3s');
+};
+
+/**
+ * Stop data reporting
+ */
+const stopDataReporting = () => {
+    if (dataReportInterval) {
+        clearTimeout(dataReportInterval);
+        dataReportInterval = null;
+        console.log('Data reporting stopped');
+    }
+};
 
 // listen to WebSocket events
 client.on('open', () => {
@@ -57,6 +155,11 @@ client.on('message', (data: Buffer) => {
     const receivedMessage = data.toString();
     console.log(`Receive message from Server: ${receivedMessage}`);
     const message: EndpointMessageDTO = JSON.parse(receivedMessage);
+    
+    if (message.type === "auth_success") {
+        console.log('Authentication successful, starting data reporting...');
+        startDataReporting();
+    }
     if (message.type === "query_endpoint_state") {
         handleQueryEndpointState();
     }
@@ -72,6 +175,7 @@ client.on('message', (data: Buffer) => {
 client.on('close', (code: number, reason: Buffer) => {
     const reasonString = reason.toString();
     console.log(`Connection closed: ${code}: ${reasonString}`);
+    stopDataReporting();
 });
 
 // handle errors
@@ -80,6 +184,7 @@ client.on('error', (error: Error) => {
     if (error.message.includes('ECONNREFUSED')) {
         console.error('Cannot connect to ws://localhost:3000');
     }
+    stopDataReporting();
 });
 
 const handleQueryEndpointState = () => {
