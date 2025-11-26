@@ -3,7 +3,7 @@ export interface EndpointMessageDTO {
     payload?: {
         uniqueHardwareId: string,
         token?: string,
-        state?: "on" | "off" | "online" | "offline" | "error",
+        state?: "on" | "off" | "error",
         command?: {
             type: "toggle" | string,
             state?: boolean
@@ -19,7 +19,7 @@ export interface UserMessageDTO {
     payload?: {
         uniqueHardwareId?: string,
         token?: string,
-        state?: "on" | "off" | "online" | "offline" | "error",
+        state?: "on" | "off" | "error",
         command?: {
             type: "toggle" | string,
             state?: boolean,

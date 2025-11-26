@@ -138,21 +138,6 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
 
     // reply to device
     ws.send(JSON.stringify({type: 'auth_success', message: 'Device reconnection successful.'}));
-
-    // notify user about device reconnection
-    const userSocket = userConnectionMap.get(user_id.toString());
-    if (userSocket && userSocket.readyState === WebSocket.OPEN) {
-        const message: UserMessageDTO = {
-            type: 'endpoint_state',
-            payload: {
-                uniqueHardwareId: hardwareId,
-                state: "online",
-            },
-        };
-        userSocket.send(JSON.stringify(message));
-    } else {
-        console.warn(`[SocketManager] User ${user_id} not connected. Cannot notify about device reconnection.`);
-    }
 }
 
 /**
@@ -295,12 +280,12 @@ async function handleUserMessage(ws: AuthenticatedWebSocket, data: UserMessageDT
                             };
                             deviceSocket.send(JSON.stringify(message));
                         } else {
-                            // device offline, reply offline state
+                            // device offline, reply error state
                             const message: UserMessageDTO = {
                                 type: 'endpoint_state',
                                 payload: {
                                     uniqueHardwareId: device.unique_hardware_id,
-                                    state: "offline",
+                                    state: "error",
                                 },
                             };
                             ws.send(JSON.stringify(message));
@@ -326,7 +311,7 @@ async function handleUserMessage(ws: AuthenticatedWebSocket, data: UserMessageDT
                         type: 'endpoint_state',
                         payload: {
                             uniqueHardwareId: targetId,
-                            state: "offline",
+                            state: "error",
                         },
                     };
                     ws.send(JSON.stringify(message));
@@ -352,7 +337,7 @@ function handleDeviceDisconnection(ws: AuthenticatedWebSocket) {
             type: 'endpoint_state',
             payload: {
                 uniqueHardwareId: hardwareId,
-                state: "offline",
+                state: "error",
             },
         };
         userSocket.send(JSON.stringify(message));

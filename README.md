@@ -216,7 +216,7 @@ Sent when user authentication is successful
 
 Sent when server returns endpoint state(s)
 - `uniqueHardwareId` and `state` must be provided
-- `state` can be `on`, `off`, `online`, `offline`, and `error`.
+- `state` can be `on`, `off`, `error`.
 ```json
 {
   "type": "endpoint_state",
