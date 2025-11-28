@@ -25,7 +25,7 @@ export const userConnectionMap = new Map<string, AuthenticatedWebSocket>();
 const AUTH_TIMEOUT_MS = 10000;
 
 // heartbeat configuration
-const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+const HEARTBEAT_INTERVAL = 10000; // 10 seconds
 
 /**
  * Starts heartbeat monitoring for an authenticated WebSocket connection
