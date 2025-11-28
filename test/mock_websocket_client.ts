@@ -163,8 +163,8 @@ client.on('message', (data: Buffer) => {
     if (message.type === "query_endpoint_state") {
         handleQueryEndpointState();
     }
-    if (message.type === "user_command") {
-        handleUserCommand(message);
+    if (message.type === "set_endpoint_state") {
+        handleSetEndpointState(message);
     }
     if (message.type === "device_unbound") {
         handleDeviceUnbound(message);
@@ -204,6 +204,24 @@ const handleUserCommand = (message: EndpointMessageDTO) => {
         if (command === "toggle") {
             state = message.payload.command.state ? "on" : "off";
             console.log(`Toggled state to: ${state}`);
+            const response: EndpointMessageDTO = {
+                type: "endpoint_state",
+                payload: {
+                    uniqueHardwareId: uniqueHardwareId,
+                    state: state,
+                }
+            };
+            client.send(JSON.stringify(response));
+        }
+    }
+}
+
+const handleSetEndpointState = (message: EndpointMessageDTO) => {
+    if (message.payload && message.payload.command) {
+        const command = message.payload.command.type;
+        if (command === "toggle") {
+            state = message.payload.command.state ? "on" : "off";
+            console.log(`Toggled state to: ${state} (from: ${message.payload.command.from || 'unknown'})`);
             const response: EndpointMessageDTO = {
                 type: "endpoint_state",
                 payload: {
