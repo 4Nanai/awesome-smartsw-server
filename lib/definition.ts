@@ -1,5 +1,5 @@
 export interface EndpointMessageDTO {
-    type: "device_auth" | "device_reconnect" | "device_unbound" | "data_report" | "endpoint_state" | "query_endpoint_state" | "user_command" | "auth_success" | "set_automation_mode" | "set_presence_mode" | "set_sound_mode",
+    type: "device_auth" | "device_reconnect" | "device_unbound" | "data_report" | "endpoint_state" | "query_endpoint_state" | "set_endpoint_state" | "auth_success" | "set_automation_mode" | "set_presence_mode" | "set_sound_mode",
     payload?: {
         uniqueHardwareId: string,
         token?: string,
@@ -8,6 +8,7 @@ export interface EndpointMessageDTO {
             type: "toggle" | string,
             state?: boolean
             data?: string,
+            from?: "user" | "ml",
         },
         sensor?: SensorDataDAO,
         mode?: string,
@@ -16,7 +17,7 @@ export interface EndpointMessageDTO {
 }
 
 export interface UserMessageDTO {
-    type: "user_auth" | "user_command" | "auth_success" | "auth_failure" | "query_endpoint_state" | "endpoint_state",
+    type: "user_auth" | "set_endpoint_state" | "auth_success" | "auth_failure" | "query_endpoint_state" | "endpoint_state",
     payload?: {
         uniqueHardwareId?: string,
         token?: string,
@@ -25,6 +26,7 @@ export interface UserMessageDTO {
             type: "toggle" | string,
             state?: boolean,
             data?: string,
+            from?: "user" | "ml",
         },
         [key: string]: any,
     },

@@ -110,22 +110,20 @@ Sent when device authentication is successful
   "message": "Authentication successful."
 }
 ```
-2. `user_command`
+2. `set_endpoint_state`
 
 Sent when user sends command to endpoint
 - `uniqueHardwareId`, `type` and `state` must be provided
-- `type` can be `toggle`...(TBD)
 - `state` must be `boolean`
-- `data` is optional
+- `from` indicates the command source ("user" or "ml")
 ```json
 {
-  "type": "user_command",
+  "type": "set_endpoint_state",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
     "command": {
-      "type": "toggle",
       "state": true,
-      "data": "Command data"
+      "from": "ml",
     }
   }
 }
@@ -215,22 +213,20 @@ Sent when user authenticates
 }
 ```
 
-2. `user_command`
+2. `set_endpoint_state`
 
 Sent when user sends command to endpoint
 - `uniqueHardwareId`, `type` and `state` must be provided
-- `type` can be `toggle`...(TBD)
 - `state` must be `boolean`
-- `data` is optional
+- `from` indicates the command source ("user" or "ml")
 ```json
 {
-  "type": "user_command",
+  "type": "set_endpoint_state",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
     "command": {
-      "type": "toggle",
       "state": true,
-      "data": "Command data"
+      "from": "user",
     }
   }
 }

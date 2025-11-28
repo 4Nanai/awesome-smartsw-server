@@ -136,6 +136,8 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
     // start heartbeat monitoring
     startHeartbeat(ws);
 
+    // TODO: send configuration to device (if any)
+
     // reply to device
     ws.send(JSON.stringify({type: 'auth_success', message: 'Device reconnection successful.'}));
 }
@@ -238,7 +240,7 @@ async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMes
  */
 async function handleUserMessage(ws: AuthenticatedWebSocket, data: UserMessageDTO) {
     switch (data.type) {
-        case 'user_command':
+        case 'set_endpoint_state':
             if (data.payload?.command && data.payload.uniqueHardwareId) {
                 console.log(`[SocketManager] User ${ws.userId} sent command:`, data.payload.command);
                 const targetId = data.payload.uniqueHardwareId;
@@ -246,7 +248,7 @@ async function handleUserMessage(ws: AuthenticatedWebSocket, data: UserMessageDT
 
                 if (deviceSocket && deviceSocket.readyState === WebSocket.OPEN) {
                     const commandMessage: EndpointMessageDTO = {
-                        type: 'user_command',
+                        type: 'set_endpoint_state',
                         payload: {
                             uniqueHardwareId: targetId,
                             command: data.payload.command,
