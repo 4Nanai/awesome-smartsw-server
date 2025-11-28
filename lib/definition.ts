@@ -1,5 +1,5 @@
 export interface EndpointMessageDTO {
-    type: "device_auth" | "device_reconnect" | "device_unbound" | "data_report" | "endpoint_state" | "query_endpoint_state" | "set_endpoint_state" | "auth_success" | "set_automation_mode" | "set_presence_mode" | "set_sound_mode",
+    type: "device_auth" | "device_reconnect" | "device_unbound" | "data_report" | "endpoint_state" | "query_endpoint_state" | "set_endpoint_state" | "auth_success" | "set_config",
     payload?: {
         uniqueHardwareId: string,
         token?: string,
@@ -11,7 +11,7 @@ export interface EndpointMessageDTO {
             from?: "user" | "ml",
         },
         sensor?: SensorDataDAO,
-        mode?: string,
+        config?: EndpointConfigDTO,
     },
     message?: string,
 }
@@ -50,6 +50,12 @@ export interface SensorDataDAO {
     sound?: {
         ts: number,
     },
+}
+
+export interface EndpointConfigDTO {
+    automation_mode?: "off" | "presence" | "sound" | "timer" | "ml",
+    presence_mode?: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
+    sound_mode?: "noise" | "clap",
 }
 
 export interface UserRegisterDTO {

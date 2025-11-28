@@ -191,10 +191,12 @@ DeviceManageRouter.post("/config/automation-mode", async (req, res) => {
         
         // Notify endpoint to update its configuration
         const message: EndpointMessageDTO = {
-            type: "set_automation_mode",
+            type: "set_config",
             payload: {
                 uniqueHardwareId: configDTO.unique_hardware_id,
-                mode: configDTO.mode
+                config: {
+                    automation_mode: configDTO.mode
+                }
             }
         };
         
@@ -269,10 +271,12 @@ DeviceManageRouter.post("/config/presence-mode", async (req, res) => {
         
         // Notify endpoint to update its configuration
         const message: EndpointMessageDTO = {
-            type: "set_presence_mode",
+            type: "set_config",
             payload: {
                 uniqueHardwareId: configDTO.unique_hardware_id,
-                mode: configDTO.mode
+                config: {
+                    presence_mode: configDTO.mode
+                }
             }
         };
         
@@ -347,10 +351,12 @@ DeviceManageRouter.post("/config/sound-mode", async (req, res) => {
         
         // Notify endpoint to update its configuration
         const message: EndpointMessageDTO = {
-            type: "set_sound_mode",
+            type: "set_config",
             payload: {
                 uniqueHardwareId: configDTO.unique_hardware_id,
-                mode: configDTO.mode
+                config: {
+                    sound_mode: configDTO.mode
+                }
             }
         };
         

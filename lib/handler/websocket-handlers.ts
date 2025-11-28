@@ -1,5 +1,5 @@
 import {AuthenticatedWebSocket, deviceConnectionMap, userConnectionMap, startHeartbeat} from "../socket-manager";
-import {BindingTokenDAO, DeviceBindingDAO, DeviceInfoDAO, EndpointMessageDTO, SensorDataDAO, UserMessageDTO} from "../definition";
+import {BindingTokenDAO, DeviceBindingDAO, DeviceConfigDAO, DeviceInfoDAO, EndpointConfigDTO, EndpointMessageDTO, SensorDataDAO, UserMessageDTO} from "../definition";
 import db from "../db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
 import {verifyToken} from "../jwt";
@@ -136,10 +136,37 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
     // start heartbeat monitoring
     startHeartbeat(ws);
 
-    // TODO: send configuration to device (if any)
+    // send configuration to device (if any)
+    let configDTO: EndpointConfigDTO | undefined = undefined;
+    try {
+        const selectDeviceConfigQuery = `SELECT automation_mode, presence_mode, sound_mode FROM device_configs WHERE unique_hardware_id = ?`;
+        const [configResult] = await db.execute<RowDataPacket[]>(selectDeviceConfigQuery, [hardwareId]) as [DeviceConfigDAO[], any];
+        if (configResult.length === 1) {
+            const config = configResult[0]!;
+            configDTO = {
+                automation_mode: config.automation_mode,
+                presence_mode: config.presence_mode,
+                sound_mode: config.sound_mode,
+            }
+        }
+        else {
+            console.log(`[SocketManager] No existing configuration found for device ${hardwareId} during reconnection.`);
+        }
+    } catch (error) {
+        console.error('[SocketManager] Database error fetching device configuration during reconnection:', error);
+    }
 
     // reply to device
-    ws.send(JSON.stringify({type: 'auth_success', message: 'Device reconnection successful.'}));
+    const response: EndpointMessageDTO = {
+        type: "auth_success",
+        payload: {
+            uniqueHardwareId: hardwareId,
+        }
+    };
+    if (configDTO) {
+        response.payload!.config = configDTO;
+    }
+    ws.send(JSON.stringify(response));
 }
 
 /**
