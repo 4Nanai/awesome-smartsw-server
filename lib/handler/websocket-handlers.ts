@@ -376,34 +376,36 @@ function handleDeviceDisconnection(ws: AuthenticatedWebSocket) {
 }
 
 async function handleSensorData(hardwareId: string, data: SensorDataDAO) {
+    const serverTimestamp = Date.now();
+    
     if (data.temp_humi) {
-        console.log(`[SocketManager] Received temperature: ${data.temp_humi.temperature}, humidity: ${data.temp_humi.humidity}, timestamp: ${data.temp_humi.ts}`);
+        console.log(`[SocketManager] Received temperature: ${data.temp_humi.temperature}, humidity: ${data.temp_humi.humidity}`);
         const insertTempHumiQuary = `INSERT INTO temp_humi_data (unique_hardware_id, temperature, humidity, ts) VALUES (?, ?, ?, ?)`;
-        const [result] = await db.execute<ResultSetHeader>(insertTempHumiQuary, [hardwareId, data.temp_humi.temperature, data.temp_humi.humidity, data.temp_humi.ts]);
+        const [result] = await db.execute<ResultSetHeader>(insertTempHumiQuary, [hardwareId, data.temp_humi.temperature, data.temp_humi.humidity, serverTimestamp]);
         if (result.affectedRows !== 1) {
             console.error('[SocketManager] Failed to insert temperature and humidity data into database');
         }
     }
     if (data.pir) {
-        console.log(`[SocketManager] Received PIR state: ${data.pir.state}, timestamp: ${data.pir.ts}`);
+        console.log(`[SocketManager] Received PIR state: ${data.pir.state}`);
         const insertPirQuary = `INSERT INTO pir_data (unique_hardware_id, state, ts) VALUES (?, ?, ?)`;
-        const [result] = await db.execute<ResultSetHeader>(insertPirQuary, [hardwareId, data.pir.state, data.pir.ts]);
+        const [result] = await db.execute<ResultSetHeader>(insertPirQuary, [hardwareId, data.pir.state, serverTimestamp]);
         if (result.affectedRows !== 1) {
             console.error('[SocketManager] Failed to insert PIR data into database');
         }
     }
     if (data.radar) {
-        console.log(`[SocketManager] Received radar state: ${data.radar.state}, timestamp: ${data.radar.ts}`);
+        console.log(`[SocketManager] Received radar state: ${data.radar.state}`);
         const insertRadarQuary = `INSERT INTO radar_data (unique_hardware_id, state, ts) VALUES (?, ?, ?)`;
-        const [result] = await db.execute<ResultSetHeader>(insertRadarQuary, [hardwareId, data.radar.state, data.radar.ts]);
+        const [result] = await db.execute<ResultSetHeader>(insertRadarQuary, [hardwareId, data.radar.state, serverTimestamp]);
         if (result.affectedRows !== 1) {
             console.error('[SocketManager] Failed to insert radar data into database');
         }
     }
     if (data.sound) {
-        console.log(`[SocketManager] Received sound timestamp: ${data.sound.ts}`);
+        console.log(`[SocketManager] Received sound event`);
         const insertSoundQuary = `INSERT INTO sound_data (unique_hardware_id, ts) VALUES (?, ?)`;
-        const [result] = await db.execute<ResultSetHeader>(insertSoundQuary, [hardwareId, data.sound.ts]);
+        const [result] = await db.execute<ResultSetHeader>(insertSoundQuary, [hardwareId, serverTimestamp]);
         if (result.affectedRows !== 1) {
             console.error('[SocketManager] Failed to insert sound data into database');
         }
