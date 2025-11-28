@@ -102,6 +102,8 @@ Endpoint reports its current state
 
 Sent when device authentication is successful
 - `config` contains device configuration parameters, see `set_config` message for details
+
+After receiving this message, endpoint should send its current state using `endpoint_state` message immediately.
 ```json
 {
   "type": "auth_success",

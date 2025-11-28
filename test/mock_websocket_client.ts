@@ -8,7 +8,7 @@ console.log(`Try connecting to: ${SERVER_ADDRESS}`);
 const client = new WebSocket(SERVER_ADDRESS);
 const IS_RECONNECT = false;
 const TOKEN = "0ffc011d-e449-4ca1-a1e6-8674f6acecc0";
-const UNIQUE_HARDWARE_ID = "06:07:C4:47:1E:BB";
+const UNIQUE_HARDWARE_ID = "UNIQUE-HW-ID";
 
 const generateRandomMacAddress = () => {
     const hexDigits = "0123456789ABCDEF";
@@ -159,6 +159,7 @@ client.on('message', (data: Buffer) => {
     if (message.type === "auth_success") {
         console.log('Authentication successful, starting data reporting...');
         startDataReporting();
+        handleQueryEndpointState();
     }
     if (message.type === "query_endpoint_state") {
         handleQueryEndpointState();
