@@ -166,6 +166,12 @@ Sent when user updates device configuration
   - `sound_mode` must be one of: `noise`, `clap`
     - `noise`: Trigger on any loud noise
     - `clap`: Trigger on clap detection
+  - `mqtt_config` contains MQTT configuration parameters
+    - `broker_url`: MQTT broker URL
+    - `port`: MQTT broker port
+    - `username`: (Optional) MQTT username
+    - `password`: (Optional) MQTT password
+    - `client_id`: (Optional) MQTT client ID
 ```json
 {
   "type": "set_config",
@@ -174,7 +180,14 @@ Sent when user updates device configuration
     "config": {
       "automation_mode": "presence",
       "presence_mode": "fusion_or",
-      "sound_mode": "clap"
+      "sound_mode": "clap",
+      "mqtt_config": {
+        "broker_url": "mqtt://broker.example.com",
+        "port": 1883,
+        "username": "user",
+        "password": "pass",
+        "client_id": "client123"
+      }
     }
   }
 }

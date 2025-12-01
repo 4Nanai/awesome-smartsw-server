@@ -56,6 +56,7 @@ export interface EndpointConfigDTO {
     automation_mode?: "off" | "presence" | "sound" | "timer" | "ml",
     presence_mode?: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
     sound_mode?: "noise" | "clap",
+    mqtt_config?: MQTTConfigDTO,
 }
 
 export interface UserRegisterDTO {
@@ -120,12 +121,24 @@ export interface SetSoundModeDTO {
     mode: "noise" | "clap",
 }
 
+export interface MQTTConfigDTO {
+    broker_url: string;
+    port: number;
+    username?: string;
+    password?: string;
+    client_id?: string;
+}
+
 export interface DeviceConfigDAO {
     id: number,
     unique_hardware_id: string,
     automation_mode: "off" | "presence" | "sound" | "timer" | "ml",
     presence_mode: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
     sound_mode: "noise" | "clap",
+    mqtt_broker?: string,
+    mqtt_port?: number,
+    mqtt_username?: string,
+    mqtt_password?: string,
     created_at: Date,
     updated_at: Date,
 }

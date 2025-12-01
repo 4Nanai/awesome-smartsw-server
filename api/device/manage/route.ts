@@ -1,7 +1,7 @@
 import {Router} from "express";
 import db from "../../../lib/db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
-import {DeviceInfoDAO, DeviceDTO, DeviceUpdateAliasDTO, SetAutomationModeDTO, SetPresenceModeDTO, SetSoundModeDTO, EndpointMessageDTO, DeviceConfigDAO} from "../../../lib/definition";
+import {DeviceInfoDAO, DeviceDTO, DeviceUpdateAliasDTO, SetAutomationModeDTO, SetPresenceModeDTO, SetSoundModeDTO, EndpointMessageDTO, DeviceConfigDAO, MQTTConfigDTO} from "../../../lib/definition";
 import {deviceConnectionMap} from "../../../lib/socket-manager";
 
 const DeviceManageRouter = Router();
@@ -367,6 +367,85 @@ DeviceManageRouter.post("/config/sound-mode", async (req, res) => {
         });
     } catch (error) {
         console.error("Error configuring sound mode:", error);
+        res.status(500).json({
+            error: "Internal Server Error"
+        });
+    }
+});
+
+DeviceManageRouter.post("/:uniqueHardwareId/mqtt-config", async (req, res) => {
+    try {
+        const userId = req.user!.id;
+        const uniqueHardwareId = req.params.uniqueHardwareId;
+        const configDTO: MQTTConfigDTO = req.body;
+        
+        if (!uniqueHardwareId || !configDTO.broker_url || !configDTO.port) {
+            res.status(400).json({
+                error: "uniqueHardwareId, broker_url, and port are required"
+            });
+            return;
+        }
+        
+        const verifyOwnershipQuery = `SELECT user_id FROM devices WHERE unique_hardware_id = ?`;
+        const [rows] = await db.execute<RowDataPacket[]>(verifyOwnershipQuery, [uniqueHardwareId]);
+        
+        if (rows.length === 0 || !rows[0]) {
+            res.status(404).json({
+                error: "Device not found"
+            });
+            return;
+        }
+        
+        if (rows[0].user_id !== userId) {
+            res.status(403).json({
+                error: "You do not have permission to configure this device"
+            });
+            return;
+        }
+        
+        const ws = deviceConnectionMap.get(uniqueHardwareId);
+        if (!ws || ws.readyState !== 1) {
+            res.status(503).json({
+                error: "Device is not online"
+            });
+            return;
+        }
+        
+        const upsertConfigQuery = `
+            INSERT INTO device_configs (unique_hardware_id, mqtt_broker, mqtt_port, mqtt_username, mqtt_password)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE mqtt_broker = ?, mqtt_port = ?, mqtt_username = ?, mqtt_password = ?, updated_at = CURRENT_TIMESTAMP
+        `;
+        await db.execute<ResultSetHeader>(upsertConfigQuery, [
+            uniqueHardwareId,
+            configDTO.broker_url,
+            configDTO.port,
+            configDTO.username || null,
+            configDTO.password || null,
+            configDTO.broker_url,
+            configDTO.port,
+            configDTO.username || null,
+            configDTO.password || null
+        ]);
+        
+        // Notify endpoint to update its configuration
+        const message: EndpointMessageDTO = {
+            type: "set_config",
+            payload: {
+                uniqueHardwareId: uniqueHardwareId,
+                config: {
+                    mqtt_config: configDTO
+                }
+            }
+        };
+        
+        ws.send(JSON.stringify(message));
+        
+        res.status(200).json({
+            message: "MQTT configuration sent successfully"
+        });
+    } catch (error) {
+        console.error("Error configuring MQTT:", error);
         res.status(500).json({
             error: "Internal Server Error"
         });
