@@ -219,10 +219,10 @@ const handleUserCommand = (message: EndpointMessageDTO) => {
 
 const handleSetEndpointState = (message: EndpointMessageDTO) => {
     if (message.payload && message.payload.command) {
-        const command = message.payload.command.type;
-        if (command === "toggle") {
-            state = message.payload.command.state ? "on" : "off";
-            console.log(`Toggled state to: ${state} (from: ${message.payload.command.from || 'unknown'})`);
+        const command = message.payload.command;
+        if (command) {
+            state = command.state ? "on" : "off";
+            console.log(`Toggled state to: ${state} (from: ${command.from || 'unknown'})`);
             const response: EndpointMessageDTO = {
                 type: "endpoint_state",
                 payload: {
