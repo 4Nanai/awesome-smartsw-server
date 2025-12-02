@@ -10,6 +10,8 @@ const IS_RECONNECT = false;
 const TOKEN = "TOKEN";
 const UNIQUE_HARDWARE_ID = "ID";
 
+const DATA_REPORT_ENABLE = false;
+
 const generateRandomMacAddress = () => {
     const hexDigits = "0123456789ABCDEF";
     const mac = [];
@@ -80,6 +82,11 @@ const generateSensorData = (): SensorDataDAO => {
 const reportSensorData = () => {
     if (client.readyState !== WebSocket.OPEN) {
         console.log('WebSocket not connected, skip data report');
+        return;
+    }
+
+    if (!DATA_REPORT_ENABLE) {
+        console.log('Data reporting disabled, skip data report');
         return;
     }
 
@@ -157,8 +164,13 @@ client.on('message', (data: Buffer) => {
     const message: EndpointMessageDTO = JSON.parse(receivedMessage);
     
     if (message.type === "auth_success") {
-        console.log('Authentication successful, starting data reporting...');
-        startDataReporting();
+        console.log('Authentication successful');
+        if (DATA_REPORT_ENABLE) {
+            console.log('Starting data reporting...');
+            startDataReporting();
+        } else {
+            console.log('Data reporting disabled.');
+        }
         handleQueryEndpointState();
     }
     if (message.type === "query_endpoint_state") {

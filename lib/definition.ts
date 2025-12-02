@@ -121,9 +121,12 @@ export interface SetSoundModeDTO {
     mode: "noise" | "clap",
 }
 
+
 export interface MQTTConfigDTO {
+    device_name: string;
     broker_url: string;
     port: number;
+    topic_prefix: string;
     username?: string;
     password?: string;
     client_id?: string;
@@ -135,10 +138,13 @@ export interface DeviceConfigDAO {
     automation_mode: "off" | "presence" | "sound" | "timer" | "ml",
     presence_mode: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
     sound_mode: "noise" | "clap",
-    mqtt_broker?: string,
+    mqtt_device_name?: string,
+    mqtt_broker_url?: string,
     mqtt_port?: number,
     mqtt_username?: string,
     mqtt_password?: string,
+    mqtt_client_id?: string,
+    mqtt_topic_prefix?: string,
     created_at: Date,
     updated_at: Date,
 }

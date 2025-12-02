@@ -120,7 +120,7 @@ After receiving this message, endpoint should send its current state using `endp
 Sent when user sends command to endpoint
 - `uniqueHardwareId`, `type` and `state` must be provided
 - `state` must be `boolean`
-- `from` indicates the command source ("user" or "ml")
+- `from` indicates the command source (`user` or `ml`)
 ```json
 {
   "type": "set_endpoint_state",
@@ -167,11 +167,13 @@ Sent when user updates device configuration
     - `noise`: Trigger on any loud noise
     - `clap`: Trigger on clap detection
   - `mqtt_config` contains MQTT configuration parameters
+    - `device_name`: MQTT device name
     - `broker_url`: MQTT broker URL
     - `port`: MQTT broker port
     - `username`: (Optional) MQTT username
     - `password`: (Optional) MQTT password
     - `client_id`: (Optional) MQTT client ID
+    - `topic_prefix`: MQTT topic prefix
 ```json
 {
   "type": "set_config",
@@ -182,11 +184,13 @@ Sent when user updates device configuration
       "presence_mode": "fusion_or",
       "sound_mode": "clap",
       "mqtt_config": {
+        "device_name": "device123",
         "broker_url": "mqtt://broker.example.com",
         "port": 1883,
+        "topic_prefix": "prefix123",
         "username": "user",
         "password": "pass",
-        "client_id": "client123"
+        "client_id": "client123",
       }
     }
   }
@@ -222,7 +226,7 @@ Sent when user authenticates
 Sent when user sends command to endpoint
 - `uniqueHardwareId`, `type` and `state` must be provided
 - `state` must be `boolean`
-- `from` indicates the command source ("user" or "ml")
+- `from` indicates the command source (`user` or `ml`)
 ```json
 {
   "type": "set_endpoint_state",

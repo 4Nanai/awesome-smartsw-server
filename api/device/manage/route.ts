@@ -379,9 +379,9 @@ DeviceManageRouter.post("/:uniqueHardwareId/mqtt-config", async (req, res) => {
         const uniqueHardwareId = req.params.uniqueHardwareId;
         const configDTO: MQTTConfigDTO = req.body;
         
-        if (!uniqueHardwareId || !configDTO.broker_url || !configDTO.port) {
+        if (!uniqueHardwareId || !configDTO.broker_url || !configDTO.port || !configDTO.topic_prefix) {
             res.status(400).json({
-                error: "uniqueHardwareId, broker_url, and port are required"
+                error: "uniqueHardwareId, broker_url, port, and topic_prefix are required"
             });
             return;
         }
@@ -412,20 +412,26 @@ DeviceManageRouter.post("/:uniqueHardwareId/mqtt-config", async (req, res) => {
         }
         
         const upsertConfigQuery = `
-            INSERT INTO device_configs (unique_hardware_id, mqtt_broker, mqtt_port, mqtt_username, mqtt_password)
-            VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE mqtt_broker = ?, mqtt_port = ?, mqtt_username = ?, mqtt_password = ?, updated_at = CURRENT_TIMESTAMP
+            INSERT INTO device_configs (unique_hardware_id, mqtt_device_name, mqtt_broker_url, mqtt_port, mqtt_username, mqtt_password, mqtt_client_id, mqtt_topic_prefix)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE mqtt_device_name = ?, mqtt_broker_url = ?, mqtt_port = ?, mqtt_username = ?, mqtt_password = ?, mqtt_client_id = ?, mqtt_topic_prefix = ?, updated_at = CURRENT_TIMESTAMP
         `;
         await db.execute<ResultSetHeader>(upsertConfigQuery, [
             uniqueHardwareId,
+            configDTO.device_name || null,
             configDTO.broker_url,
             configDTO.port,
             configDTO.username || null,
             configDTO.password || null,
+            configDTO.client_id || null,
+            configDTO.topic_prefix,
+            configDTO.device_name || null,
             configDTO.broker_url,
             configDTO.port,
             configDTO.username || null,
-            configDTO.password || null
+            configDTO.password || null,
+            configDTO.client_id || null,
+            configDTO.topic_prefix
         ]);
         
         // Notify endpoint to update its configuration
