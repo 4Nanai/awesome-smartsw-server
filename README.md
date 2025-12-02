@@ -180,6 +180,15 @@ Sent when user updates device configuration
 }
 ```
 
+5. `device_unbound`
+Sent when device sends `device_reconnect` but is not registered
+```json
+{
+  "type": "device_unbound",
+  "message": "Device not registered."
+}
+```
+
 ### User to Server
 #### MESSAGE_TYPE
 1. `user_auth`

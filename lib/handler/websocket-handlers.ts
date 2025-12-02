@@ -109,7 +109,7 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
         const [result] = await db.execute(selectDeviceQuery, [hardwareId]) as [DeviceBindingDAO[], any];
         if (result.length !== 1) {
             console.warn(`[SocketManager] Device reconnect failed: Device ${hardwareId} not registered`);
-            ws.close();
+            ws.send(JSON.stringify({type: 'device_unbound', message: 'Device not registered.'}));
             return;
         }
         user_id = result[0]!.user_id;
