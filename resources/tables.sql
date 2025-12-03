@@ -81,6 +81,22 @@ CREATE TABLE IF NOT EXISTS `pir_data`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4;
 
+CREATE TABLE IF NOT EXISTS `switch_data`
+(
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `unique_hardware_id` VARCHAR(100) NOT NULL,
+  `state` BOOLEAN NOT NULL,
+  `ts` BIGINT NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `idx_unique_hardware_id_ts_UNIQUE` (`unique_hardware_id` ASC, `ts` ASC),
+  CONSTRAINT `fk_device_switch`
+    FOREIGN KEY (`unique_hardware_id`)
+      REFERENCES `devices` (`unique_hardware_id`)
+      ON DELETE CASCADE
+      ON UPDATE NO ACTION
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
+
 CREATE TABLE IF NOT EXISTS `radar_data`
 (
   `id` INT NOT NULL AUTO_INCREMENT,

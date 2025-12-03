@@ -282,6 +282,15 @@ async function handleUserMessage(ws: AuthenticatedWebSocket, data: UserMessageDT
                         },
                     };
                     deviceSocket.send(JSON.stringify(commandMessage));
+                    const insertSwitchDataQuery = `INSERT INTO switch_data (unique_hardware_id, state, ts) VALUES (?, ?, ?)`;
+                    const [result] = await db.execute<ResultSetHeader>(insertSwitchDataQuery, [
+                        targetId,
+                        data.payload.command.state ?? null,
+                        Date.now(),
+                    ]);
+                    if (result.affectedRows !== 1) {
+                        console.error('[SocketManager] Failed to insert switch command data into database');
+                    }
                 } else {
                     console.warn(`[SocketManager] Device ${targetId} not connected. Cannot forward command.`);
                     // reply to user that device is offline
