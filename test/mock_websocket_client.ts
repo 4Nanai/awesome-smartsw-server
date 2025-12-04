@@ -1,5 +1,6 @@
 import WebSocket from 'ws';
-import {EndpointMessageDTO, SensorDataDAO} from "../lib/definition";
+import {EndpointMessageDTO, SensorDataDAO, UserMessageDTO} from "../lib/definition";
+import * as readline from 'readline';
 
 const SERVER_ADDRESS = 'ws://localhost:3000';
 
@@ -134,6 +135,50 @@ const stopDataReporting = () => {
 client.on('open', () => {
     console.log('Connected to the WebSocket server.');
 
+    // Set up readline for user input
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        prompt: 'Enter command (on/off): '
+    });
+
+    rl.prompt();
+
+    rl.on('line', (input) => {
+        const command = input.trim().toLowerCase();
+        if (command === 'on') {
+            const setStateMessage: UserMessageDTO = {
+                type: "endpoint_state",
+                payload: {
+                    uniqueHardwareId: uniqueHardwareId,
+                    state: "on",
+                    from: "manual_or_user",
+                }
+            };
+            client.send(JSON.stringify(setStateMessage));
+            console.log(`Sent endpoint_state: on`);
+        } else if (command === 'off') {
+            const setStateMessage: UserMessageDTO = {
+                type: "endpoint_state",
+                payload: {
+                    uniqueHardwareId: uniqueHardwareId,
+                    state: "off",
+                    from: "manual_or_user",
+                }
+            };
+            client.send(JSON.stringify(setStateMessage));
+            console.log(`Sent endpoint_state: off`);
+        } else {
+            console.log('Invalid command. Please enter "on" or "off".');
+        }
+        rl.prompt();
+    });
+
+    rl.on('close', () => {
+        console.log('Readline closed.');
+        client.close();
+    });
+
     if (!IS_RECONNECT) {
         // After connection is open, we can send messages
         const authMessage: EndpointMessageDTO = {
@@ -206,27 +251,10 @@ const handleQueryEndpointState = () => {
         payload: {
             uniqueHardwareId: uniqueHardwareId,
             state: state,
+            from: "manual_or_user",
         }
     };
     client.send(JSON.stringify(response));
-}
-
-const handleUserCommand = (message: EndpointMessageDTO) => {
-    if (message.payload && message.payload.command) {
-        const command = message.payload.command.type;
-        if (command === "toggle") {
-            state = message.payload.command.state ? "on" : "off";
-            console.log(`Toggled state to: ${state}`);
-            const response: EndpointMessageDTO = {
-                type: "endpoint_state",
-                payload: {
-                    uniqueHardwareId: uniqueHardwareId,
-                    state: state,
-                }
-            };
-            client.send(JSON.stringify(response));
-        }
-    }
 }
 
 const handleSetEndpointState = (message: EndpointMessageDTO) => {
@@ -240,6 +268,7 @@ const handleSetEndpointState = (message: EndpointMessageDTO) => {
                 payload: {
                     uniqueHardwareId: uniqueHardwareId,
                     state: state,
+                    from: command.from === 'ml' ? 'ml' : 'manual_or_user',
                 }
             };
             client.send(JSON.stringify(response));
