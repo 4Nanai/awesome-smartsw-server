@@ -43,4 +43,16 @@ services:
     volumes:
       - ./:/app
       - /app/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock # to call the ml_worker
 
+  ml_worker:
+    build:
+      context: .
+      dockerfile: ml/Dockerfile
+    container_name: websocket_ml_worker
+    restart: unless-stopped
+    volumes:
+      - ./:/app
+    depends_on:
+      mysql:
+        condition: service_healthy

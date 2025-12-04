@@ -5,7 +5,7 @@ import traceback
 import lightgbm as lgb
 import onnxmltools
 import pandas as pd
-from skl2onnx.common.data_types import FloatTensorType
+from onnxmltools.convert.common.data_types import FloatTensorType
 
 # ---------------------------
 # 1. Parse arguments

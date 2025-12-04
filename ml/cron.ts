@@ -8,6 +8,10 @@ cron.schedule('0 4 * * *', async () => {
 
 // manual run
 if (require.main === module) {
-    console.log("[CRON] Manual trigger.");
-    runTrainingCycle();
+    (async () => {
+        console.log("[CRON] Manual trigger.");
+        await runTrainingCycle();
+        console.log("[CRON] Completed.");
+        process.exit(0);
+    })();
 }

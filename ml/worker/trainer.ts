@@ -165,13 +165,22 @@ function buildFeatureCSV(timeline: TimelinePoint[], csvPath: string) {
 
 // Spawn python trainers and save results as onnx
 async function runPythonTrainer(csvPath: string, onnxPath: string): Promise<void> {
+    // non-docker version
+    // return new Promise((resolve, reject) => {
+    //     const py = spawn("python3", [
+    //         config.PYTHON_TRAINER,
+    //         csvPath,
+    //         onnxPath
+    //     ]);
     return new Promise((resolve, reject) => {
-        const py = spawn("python3", [
+        const py = spawn("docker", [
+            "exec",
+            "websocket_ml_worker",
+            "python3",
             config.PYTHON_TRAINER,
             csvPath,
             onnxPath
         ]);
-
         py.stdout.on('data', data => {
             console.log("[PY]", data.toString());
         });

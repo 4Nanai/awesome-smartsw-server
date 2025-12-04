@@ -7,11 +7,11 @@ const SERVER_ADDRESS = 'ws://localhost:3000';
 console.log(`Try connecting to: ${SERVER_ADDRESS}`);
 
 const client = new WebSocket(SERVER_ADDRESS);
-const IS_RECONNECT = false;
-const TOKEN = "TOKEN";
-const UNIQUE_HARDWARE_ID = "ID";
+const IS_RECONNECT = true;
+const TOKEN = "35215553-2747-40b5-9d56-a87dd265e3fa";
+const UNIQUE_HARDWARE_ID = "A3:CD:28:77:59:89";
 
-const DATA_REPORT_ENABLE = false;
+const DATA_REPORT_ENABLE = true;
 
 const generateRandomMacAddress = () => {
     const hexDigits = "0123456789ABCDEF";
