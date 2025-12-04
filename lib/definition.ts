@@ -129,6 +129,8 @@ export interface MQTTConfigDTO {
     username?: string;
     password?: string;
     client_id?: string;
+    ha_discovery_enabled?: boolean;
+    ha_discovery_prefix?: string;
 }
 
 export interface DeviceConfigDAO {
@@ -144,6 +146,8 @@ export interface DeviceConfigDAO {
     mqtt_password?: string,
     mqtt_client_id?: string,
     mqtt_topic_prefix?: string,
+    mqtt_ha_discovery_enabled?: boolean,
+    mqtt_ha_discovery_prefix?: string,
     created_at: Date,
     updated_at: Date,
 }

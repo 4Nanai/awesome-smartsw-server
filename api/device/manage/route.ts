@@ -411,9 +411,9 @@ DeviceManageRouter.post("/:uniqueHardwareId/mqtt-config", async (req, res) => {
         }
         
         const upsertConfigQuery = `
-            INSERT INTO device_configs (unique_hardware_id, mqtt_device_name, mqtt_broker_url, mqtt_port, mqtt_username, mqtt_password, mqtt_client_id, mqtt_topic_prefix)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE mqtt_device_name = ?, mqtt_broker_url = ?, mqtt_port = ?, mqtt_username = ?, mqtt_password = ?, mqtt_client_id = ?, mqtt_topic_prefix = ?, updated_at = CURRENT_TIMESTAMP
+            INSERT INTO device_configs (unique_hardware_id, mqtt_device_name, mqtt_broker_url, mqtt_port, mqtt_username, mqtt_password, mqtt_client_id, mqtt_topic_prefix, mqtt_ha_discovery_enabled, mqtt_ha_discovery_prefix)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE mqtt_device_name = ?, mqtt_broker_url = ?, mqtt_port = ?, mqtt_username = ?, mqtt_password = ?, mqtt_client_id = ?, mqtt_topic_prefix = ?, mqtt_ha_discovery_enabled = ?, mqtt_ha_discovery_prefix = ?, updated_at = CURRENT_TIMESTAMP
         `;
         await db.execute<ResultSetHeader>(upsertConfigQuery, [
             uniqueHardwareId,
@@ -424,13 +424,17 @@ DeviceManageRouter.post("/:uniqueHardwareId/mqtt-config", async (req, res) => {
             configDTO.password || null,
             configDTO.client_id || null,
             configDTO.topic_prefix,
+            configDTO.ha_discovery_enabled !== undefined ? configDTO.ha_discovery_enabled : null,
+            configDTO.ha_discovery_prefix || null,
             configDTO.device_name || null,
             configDTO.broker_url,
             configDTO.port,
             configDTO.username || null,
             configDTO.password || null,
             configDTO.client_id || null,
-            configDTO.topic_prefix
+            configDTO.topic_prefix,
+            configDTO.ha_discovery_enabled !== undefined ? configDTO.ha_discovery_enabled : null,
+            configDTO.ha_discovery_prefix || null
         ]);
         
         // Notify endpoint to update its configuration

@@ -142,6 +142,8 @@ CREATE TABLE IF NOT EXISTS `device_configs`
   `mqtt_password` VARCHAR(255) NULL,
   `mqtt_client_id` VARCHAR(100) NULL,
   `mqtt_topic_prefix` VARCHAR(255) NULL,
+  `mqtt_ha_discovery_enabled` BOOLEAN NULL DEFAULT FALSE,
+  `mqtt_ha_discovery_prefix` VARCHAR(255) NULL DEFAULT 'homeassistant',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
