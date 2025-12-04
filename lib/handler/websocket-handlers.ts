@@ -103,6 +103,7 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
             };
             if (config.mqtt_broker_url) {
                 configDTO.mqtt_config = {
+                    enable: true,
                     device_name: config.mqtt_device_name!,
                     broker_url: config.mqtt_broker_url,
                     port: config.mqtt_port!,
@@ -212,6 +213,7 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
             };
             if (config.mqtt_broker_url) {
                 configDTO.mqtt_config = {
+                    enable: true,
                     device_name: config.mqtt_device_name!,
                     broker_url: config.mqtt_broker_url,
                     port: config.mqtt_port!,

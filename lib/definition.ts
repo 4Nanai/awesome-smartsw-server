@@ -148,10 +148,11 @@ export interface DeviceTimerDAO {
 }
 
 export interface MQTTConfigDTO {
-    device_name: string;
-    broker_url: string;
-    port: number;
-    topic_prefix: string;
+    enable: boolean;
+    device_name?: string;
+    broker_url?: string;
+    port?: number;
+    topic_prefix?: string;
     username?: string;
     password?: string;
     client_id?: string;

@@ -378,9 +378,16 @@ DeviceManageRouter.post("/:uniqueHardwareId/mqtt-config", async (req, res) => {
         const uniqueHardwareId = req.params.uniqueHardwareId;
         const configDTO: MQTTConfigDTO = req.body;
         
-        if (!uniqueHardwareId || !configDTO.broker_url || !configDTO.port || !configDTO.topic_prefix) {
+        if (!uniqueHardwareId || configDTO.enable === undefined) {
             res.status(400).json({
-                error: "uniqueHardwareId, broker_url, port, and topic_prefix are required"
+                error: "uniqueHardwareId and enabled are required"
+            });
+            return;
+        }
+        
+        if (configDTO.enable && (!configDTO.broker_url || !configDTO.port || !configDTO.topic_prefix)) {
+            res.status(400).json({
+                error: "broker_url, port, and topic_prefix are required when enabled is true"
             });
             return;
         }
@@ -410,32 +417,43 @@ DeviceManageRouter.post("/:uniqueHardwareId/mqtt-config", async (req, res) => {
             return;
         }
         
-        const upsertConfigQuery = `
-            INSERT INTO device_configs (unique_hardware_id, mqtt_device_name, mqtt_broker_url, mqtt_port, mqtt_username, mqtt_password, mqtt_client_id, mqtt_topic_prefix, mqtt_ha_discovery_enabled, mqtt_ha_discovery_prefix)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE mqtt_device_name = ?, mqtt_broker_url = ?, mqtt_port = ?, mqtt_username = ?, mqtt_password = ?, mqtt_client_id = ?, mqtt_topic_prefix = ?, mqtt_ha_discovery_enabled = ?, mqtt_ha_discovery_prefix = ?, updated_at = CURRENT_TIMESTAMP
-        `;
-        await db.execute<ResultSetHeader>(upsertConfigQuery, [
-            uniqueHardwareId,
-            configDTO.device_name || null,
-            configDTO.broker_url,
-            configDTO.port,
-            configDTO.username || null,
-            configDTO.password || null,
-            configDTO.client_id || null,
-            configDTO.topic_prefix,
-            configDTO.ha_discovery_enabled !== undefined ? configDTO.ha_discovery_enabled : null,
-            configDTO.ha_discovery_prefix || null,
-            configDTO.device_name || null,
-            configDTO.broker_url,
-            configDTO.port,
-            configDTO.username || null,
-            configDTO.password || null,
-            configDTO.client_id || null,
-            configDTO.topic_prefix,
-            configDTO.ha_discovery_enabled !== undefined ? configDTO.ha_discovery_enabled : null,
-            configDTO.ha_discovery_prefix || null
-        ]);
+        if (configDTO.enable) {
+            // Enable MQTT: save configuration
+            const upsertConfigQuery = `
+                INSERT INTO device_configs (unique_hardware_id, mqtt_device_name, mqtt_broker_url, mqtt_port, mqtt_username, mqtt_password, mqtt_client_id, mqtt_topic_prefix, mqtt_ha_discovery_enabled, mqtt_ha_discovery_prefix)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE mqtt_device_name = ?, mqtt_broker_url = ?, mqtt_port = ?, mqtt_username = ?, mqtt_password = ?, mqtt_client_id = ?, mqtt_topic_prefix = ?, mqtt_ha_discovery_enabled = ?, mqtt_ha_discovery_prefix = ?, updated_at = CURRENT_TIMESTAMP
+            `;
+            await db.execute<ResultSetHeader>(upsertConfigQuery, [
+                uniqueHardwareId,
+                configDTO.device_name || null,
+                configDTO.broker_url,
+                configDTO.port,
+                configDTO.username || null,
+                configDTO.password || null,
+                configDTO.client_id || null,
+                configDTO.topic_prefix,
+                configDTO.ha_discovery_enabled !== undefined ? configDTO.ha_discovery_enabled : null,
+                configDTO.ha_discovery_prefix || null,
+                configDTO.device_name || null,
+                configDTO.broker_url,
+                configDTO.port,
+                configDTO.username || null,
+                configDTO.password || null,
+                configDTO.client_id || null,
+                configDTO.topic_prefix,
+                configDTO.ha_discovery_enabled !== undefined ? configDTO.ha_discovery_enabled : null,
+                configDTO.ha_discovery_prefix || null
+            ]);
+        } else {
+            // Disable MQTT: set all MQTT fields to null
+            const disableConfigQuery = `
+                UPDATE device_configs
+                SET mqtt_device_name = NULL, mqtt_broker_url = NULL, mqtt_port = NULL, mqtt_username = NULL, mqtt_password = NULL, mqtt_client_id = NULL, mqtt_topic_prefix = NULL, mqtt_ha_discovery_enabled = NULL, mqtt_ha_discovery_prefix = NULL, updated_at = CURRENT_TIMESTAMP
+                WHERE unique_hardware_id = ?
+            `;
+            await db.execute<ResultSetHeader>(disableConfigQuery, [uniqueHardwareId]);
+        }
         
         // Notify endpoint to update its configuration
         const message: EndpointMessageDTO = {
