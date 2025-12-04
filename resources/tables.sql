@@ -146,3 +146,25 @@ CREATE TABLE IF NOT EXISTS `device_configs`
       ON UPDATE NO ACTION
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4;
+
+# table for storing ml model and metadata related to that
+CREATE TABLE IF NOT EXISTS `ml_models`
+(
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `unique_hardware_id` VARCHAR(100) NOT NULL,
+  `model_type` VARCHAR(50) NOT NULL,                         -- e.g. 'lightgbm_onnx'
+  `model_data` LONGBLOB NOT NULL,                            -- ONNX binary blob
+  `trained_until` BIGINT NOT NULL,                           -- ms since epoch
+  `training_days` INT NOT NULL,
+  `status` ENUM('ready', 'insufficient_data', 'no_activity', 'error') NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `unique_hardware_id_UNIQUE` (`unique_hardware_id` ASC),
+  CONSTRAINT `fk_device_ml_model`
+    FOREIGN KEY (`unique_hardware_id`)
+      REFERENCES `devices` (`unique_hardware_id`)
+      ON DELETE CASCADE
+      ON UPDATE NO ACTION
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
