@@ -14,7 +14,7 @@ UserLoginRouter.post("/", async (req, res) => {
         return;
     }
     try {
-        const query = `SELECT id, password_hash FROM users WHERE username = ?`;
+        const query = `SELECT id, password_hash, timezone FROM users WHERE username = ?`;
         const [result] = await db.execute<RowDataPacket[]>(query, [loginDTO.username]) as [UserLoginDAO[] , any];
         if (result.length === 0) {
             res.status(401).json({message: "Invalid username or password"});
@@ -29,6 +29,7 @@ UserLoginRouter.post("/", async (req, res) => {
         const userPayload: UserPayload = {
             id: user.id,
             username: loginDTO.username,
+            timezone: user.timezone,
         };
         const token = generateToken(userPayload);
         res.status(200).json({

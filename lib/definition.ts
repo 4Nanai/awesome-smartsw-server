@@ -66,12 +66,14 @@ export interface EndpointConfigDTO {
     sensor_off_delay?: number,
     timer?: TimerSchedule,
     mqtt_config?: MQTTConfigDTO,
+    timezone?: string,
 }
 
 export interface UserRegisterDTO {
     username: string,
     password: string,
     email: string,
+    timezone: string,
 }
 
 export interface UserLoginDTO {
@@ -82,11 +84,13 @@ export interface UserLoginDTO {
 export interface UserLoginDAO {
     id: number,
     password_hash: string,
+    timezone: string,
 }
 
 export interface UserPayload {
     id: number,
     username: string,
+    timezone: string,
 }
 
 export interface BindingTokenDAO {

@@ -89,6 +89,18 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
     // start heartbeat monitoring
     startHeartbeat(ws);
 
+    // Fetch user timezone
+    let userTimezone = 'UTC';
+    try {
+        const selectUserQuery = `SELECT timezone FROM users WHERE id = ?`;
+        const [userResult] = await db.execute<RowDataPacket[]>(selectUserQuery, [userId]) as [{timezone: string}[], any];
+        if (userResult.length === 1) {
+            userTimezone = userResult[0]!.timezone;
+        }
+    } catch (error) {
+        console.error('[SocketManager] Error fetching user timezone during device authentication:', error);
+    }
+
     // send configuration to device (if any)
     let configDTO: EndpointConfigDTO | undefined = undefined;
     try {
@@ -151,7 +163,12 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
         }
     };
     if (configDTO) {
+        configDTO.timezone = userTimezone;
         response.payload!.config = configDTO;
+    } else {
+        response.payload!.config = {
+            timezone: userTimezone,
+        };
     }
     ws.send(JSON.stringify(response));
 }
@@ -198,6 +215,18 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
 
     // start heartbeat monitoring
     startHeartbeat(ws);
+
+    // Fetch user timezone
+    let userTimezone = 'UTC';
+    try {
+        const selectUserQuery = `SELECT timezone FROM users WHERE id = ?`;
+        const [userResult] = await db.execute<RowDataPacket[]>(selectUserQuery, [user_id]) as [{timezone: string}[], any];
+        if (userResult.length === 1) {
+            userTimezone = userResult[0]!.timezone;
+        }
+    } catch (error) {
+        console.error('[SocketManager] Error fetching user timezone during device reconnection:', error);
+    }
 
     // send configuration to device (if any)
     let configDTO: EndpointConfigDTO | undefined = undefined;
@@ -261,7 +290,12 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
         }
     };
     if (configDTO) {
+        configDTO.timezone = userTimezone;
         response.payload!.config = configDTO;
+    } else {
+        response.payload!.config = {
+            timezone: userTimezone,
+        };
     }
     ws.send(JSON.stringify(response));
 }
@@ -286,6 +320,7 @@ async function handleUserAuth(ws: AuthenticatedWebSocket, data: UserMessageDTO, 
     }
 
     const userId = userPayload.id;
+    const timezone = userPayload.timezone;
     console.log(`[SocketManager] User ${userId} authenticated.`);
     clearTimeout(authTimeout);
 
@@ -302,8 +337,42 @@ async function handleUserAuth(ws: AuthenticatedWebSocket, data: UserMessageDTO, 
     // start heartbeat monitoring
     startHeartbeat(ws);
 
-    // reply to user
-    ws.send(JSON.stringify({type: 'auth_success', message: 'User authentication successful.'}));
+    // reply to user with timezone in config
+    const response: UserMessageDTO = {
+        type: 'auth_success',
+        message: 'User authentication successful.',
+        payload: {
+            config: {
+                timezone: timezone,
+            },
+        },
+    };
+    ws.send(JSON.stringify(response));
+
+    // Send timezone to all connected devices owned by this user
+    try {
+        const selectDevicesQuery = `SELECT unique_hardware_id FROM devices WHERE user_id = ?`;
+        const [devices] = await db.execute<RowDataPacket[]>(selectDevicesQuery, [userId]) as [{unique_hardware_id: string}[], any];
+
+        for (const device of devices) {
+            const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
+            if (deviceSocket && deviceSocket.readyState === WebSocket.OPEN) {
+                const configMessage: EndpointMessageDTO = {
+                    type: "set_config",
+                    payload: {
+                        uniqueHardwareId: device.unique_hardware_id,
+                        config: {
+                            timezone: timezone,
+                        },
+                    },
+                };
+                deviceSocket.send(JSON.stringify(configMessage));
+                console.log(`[SocketManager] Sent timezone to device ${device.unique_hardware_id} after user auth`);
+            }
+        }
+    } catch (error) {
+        console.error('[SocketManager] Error sending timezone to devices after user auth:', error);
+    }
 }
 
 

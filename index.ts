@@ -6,6 +6,7 @@ import { initWebSocketServer } from './lib/socket-manager';
 import WSStatusRouter from "./api/ws-status/route";
 import UserRegisterRouter from "./api/user/register/route";
 import UserLoginRouter from "./api/user/login/route";
+import UserProfileRouter from "./api/user/profile/route";
 import {loginUserInterceptor} from "./lib/interceptor";
 import DeviceBindingRouter from "./api/device/binding/route";
 import DeviceManageRouter from "./api/device/manage/route";
@@ -25,6 +26,7 @@ app.post("/", (req, res) => {
 
 app.use("/api/user/register", UserRegisterRouter);
 app.use("/api/user/login", UserLoginRouter);
+app.use("/api/user/profile", loginUserInterceptor, UserProfileRouter);
 app.use("/api/ws-status", loginUserInterceptor, WSStatusRouter);
 app.use("/api/device/binding", loginUserInterceptor, DeviceBindingRouter);
 app.use("/api/device/manage", loginUserInterceptor, DeviceManageRouter);
