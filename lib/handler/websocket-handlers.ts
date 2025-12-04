@@ -1,5 +1,5 @@
 import {AuthenticatedWebSocket, deviceConnectionMap, userConnectionMap, startHeartbeat} from "../socket-manager";
-import {BindingTokenDAO, DeviceBindingDAO, DeviceConfigDAO, DeviceInfoDAO, EndpointConfigDTO, EndpointMessageDTO, SensorDataDAO, UserMessageDTO} from "../definition";
+import {BindingTokenDAO, DeviceBindingDAO, DeviceConfigDAO, DeviceInfoDAO, EndpointConfigDTO, EndpointMessageDTO, SensorDataDAO, UserMessageDTO, DeviceTimerDAO, TimerSchedule} from "../definition";
 import db from "../db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
 import {verifyToken} from "../jwt";
@@ -89,8 +89,71 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
     // start heartbeat monitoring
     startHeartbeat(ws);
 
+    // send configuration to device (if any)
+    let configDTO: EndpointConfigDTO | undefined = undefined;
+    try {
+        const selectDeviceConfigQuery = `SELECT automation_mode, presence_mode, sensor_off_delay, mqtt_device_name, mqtt_broker_url, mqtt_port, mqtt_username, mqtt_password, mqtt_client_id, mqtt_topic_prefix, mqtt_ha_discovery_enabled, mqtt_ha_discovery_prefix FROM device_configs WHERE unique_hardware_id = ?`;
+        const [configResult] = await db.execute<RowDataPacket[]>(selectDeviceConfigQuery, [hardwareId]) as [DeviceConfigDAO[], any];
+        if (configResult.length === 1) {
+            const config = configResult[0]!;
+            configDTO = {
+                automation_mode: config.automation_mode,
+                presence_mode: config.presence_mode,
+                sensor_off_delay: config.sensor_off_delay,
+            };
+            if (config.mqtt_broker_url) {
+                configDTO.mqtt_config = {
+                    enable: true,
+                    device_name: config.mqtt_device_name!,
+                    broker_url: config.mqtt_broker_url,
+                    port: config.mqtt_port!,
+                    topic_prefix: config.mqtt_topic_prefix!,
+                    ...(config.mqtt_username && { username: config.mqtt_username }),
+                    ...(config.mqtt_password && { password: config.mqtt_password }),
+                    ...(config.mqtt_client_id && { client_id: config.mqtt_client_id }),
+                    ...(config.mqtt_ha_discovery_enabled !== null && { ha_discovery_enabled: config.mqtt_ha_discovery_enabled }),
+                    ...(config.mqtt_ha_discovery_prefix && { ha_discovery_prefix: config.mqtt_ha_discovery_prefix }),
+                };
+            }
+
+            // Load timer configuration
+            const selectTimersQuery = `SELECT day_of_week, hour, minute, second, action FROM device_timers WHERE unique_hardware_id = ? ORDER BY day_of_week, hour, minute, second`;
+            const [timersResult] = await db.execute<RowDataPacket[]>(selectTimersQuery, [hardwareId]) as [DeviceTimerDAO[], any];
+            if (timersResult.length > 0) {
+                const timerSchedule: TimerSchedule = {};
+                timersResult.forEach((timer) => {
+                    const dayKey = timer.day_of_week.toString();
+                    if (!timerSchedule[dayKey]) {
+                        timerSchedule[dayKey] = [];
+                    }
+                    timerSchedule[dayKey]!.push({
+                        h: timer.hour,
+                        m: timer.minute,
+                        s: timer.second,
+                        a: timer.action,
+                    });
+                });
+                configDTO.timer = timerSchedule;
+            }
+        }
+        else {
+            console.log(`[SocketManager] No existing configuration found for device ${hardwareId} during authentication.`);
+        }
+    } catch (error) {
+        console.error('[SocketManager] Database error fetching device configuration during authentication:', error);
+    }
+
     // reply to device
-    ws.send(JSON.stringify({type: 'auth_success', message: 'Authentication successful.'}));
+    const response: EndpointMessageDTO = {
+        type: "auth_success",
+        payload: {
+            uniqueHardwareId: hardwareId,
+        }
+    };
+    if (configDTO) {
+        response.payload!.config = configDTO;
+    }
+    ws.send(JSON.stringify(response));
 }
 
 async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointMessageDTO, authTimeout: NodeJS.Timeout) {
@@ -139,14 +202,48 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
     // send configuration to device (if any)
     let configDTO: EndpointConfigDTO | undefined = undefined;
     try {
-        const selectDeviceConfigQuery = `SELECT automation_mode, presence_mode, sound_mode FROM device_configs WHERE unique_hardware_id = ?`;
+        const selectDeviceConfigQuery = `SELECT automation_mode, presence_mode, sensor_off_delay, mqtt_device_name, mqtt_broker_url, mqtt_port, mqtt_username, mqtt_password, mqtt_client_id, mqtt_topic_prefix, mqtt_ha_discovery_enabled, mqtt_ha_discovery_prefix FROM device_configs WHERE unique_hardware_id = ?`;
         const [configResult] = await db.execute<RowDataPacket[]>(selectDeviceConfigQuery, [hardwareId]) as [DeviceConfigDAO[], any];
         if (configResult.length === 1) {
             const config = configResult[0]!;
             configDTO = {
                 automation_mode: config.automation_mode,
                 presence_mode: config.presence_mode,
-                sound_mode: config.sound_mode,
+                sensor_off_delay: config.sensor_off_delay,
+            };
+            if (config.mqtt_broker_url) {
+                configDTO.mqtt_config = {
+                    enable: true,
+                    device_name: config.mqtt_device_name!,
+                    broker_url: config.mqtt_broker_url,
+                    port: config.mqtt_port!,
+                    topic_prefix: config.mqtt_topic_prefix!,
+                    ...(config.mqtt_username && { username: config.mqtt_username }),
+                    ...(config.mqtt_password && { password: config.mqtt_password }),
+                    ...(config.mqtt_client_id && { client_id: config.mqtt_client_id }),
+                    ...(config.mqtt_ha_discovery_enabled !== null && { ha_discovery_enabled: config.mqtt_ha_discovery_enabled }),
+                    ...(config.mqtt_ha_discovery_prefix && { ha_discovery_prefix: config.mqtt_ha_discovery_prefix }),
+                };
+            }
+
+            // Load timer configuration
+            const selectTimersQuery = `SELECT day_of_week, hour, minute, second, action FROM device_timers WHERE unique_hardware_id = ? ORDER BY day_of_week, hour, minute, second`;
+            const [timersResult] = await db.execute<RowDataPacket[]>(selectTimersQuery, [hardwareId]) as [DeviceTimerDAO[], any];
+            if (timersResult.length > 0) {
+                const timerSchedule: TimerSchedule = {};
+                timersResult.forEach((timer) => {
+                    const dayKey = timer.day_of_week.toString();
+                    if (!timerSchedule[dayKey]) {
+                        timerSchedule[dayKey] = [];
+                    }
+                    timerSchedule[dayKey]!.push({
+                        h: timer.hour,
+                        m: timer.minute,
+                        s: timer.second,
+                        a: timer.action,
+                    });
+                });
+                configDTO.timer = timerSchedule;
             }
         }
         else {
@@ -230,6 +327,20 @@ async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMes
             if (data.payload?.state && ws.hardwareId) {
                 console.log(`[SocketManager] Received state from ${ws.hardwareId}:`, data.payload);
                 try {
+                    // Store state to database
+                    const stateBoolean = data.payload.state === 'on';
+                    const from = data.payload.from || 'manual_or_user';
+                    const insertSwitchDataQuery = `INSERT INTO switch_data (unique_hardware_id, state, \`from\`, ts) VALUES (?, ?, ?, ?)`;
+                    const [insertResult] = await db.execute<ResultSetHeader>(insertSwitchDataQuery, [
+                        ws.hardwareId,
+                        stateBoolean,
+                        from,
+                        Date.now(),
+                    ]);
+                    if (insertResult.affectedRows !== 1) {
+                        console.error('[SocketManager] Failed to insert endpoint state data into database');
+                    }
+
                     const selectUserIdQuery = `SELECT user_id FROM devices WHERE unique_hardware_id = ?`;
                     const [rows] = await db.execute<RowDataPacket[]>(selectUserIdQuery, [ws.hardwareId]) as [{ user_id: number }[], any];
 
@@ -282,10 +393,12 @@ async function handleUserMessage(ws: AuthenticatedWebSocket, data: UserMessageDT
                         },
                     };
                     deviceSocket.send(JSON.stringify(commandMessage));
-                    const insertSwitchDataQuery = `INSERT INTO switch_data (unique_hardware_id, state, ts) VALUES (?, ?, ?)`;
+                    const from = data.payload.command.from === 'ml' ? 'ml' : 'manual_or_user';
+                    const insertSwitchDataQuery = `INSERT INTO switch_data (unique_hardware_id, state, \`from\`, ts) VALUES (?, ?, ?, ?)`;
                     const [result] = await db.execute<ResultSetHeader>(insertSwitchDataQuery, [
                         targetId,
                         data.payload.command.state ?? null,
+                        from,
                         Date.now(),
                     ]);
                     if (result.affectedRows !== 1) {

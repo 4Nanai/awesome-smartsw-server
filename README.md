@@ -85,12 +85,14 @@ Endpoint reports its current state
 - `uniqueHardwareId` must be provided
 - `state` must be provided
 - `state` can be `on`, `off`, and `error`.
+- `from` indicates the command source (`manual_or_user`, `presence_sensor`, `sound_sensor`, `timer`, `ml`)
 ```json
 {
   "type": "endpoint_state",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
-    "state": "on"
+    "state": "on",
+    "from": "manual_or_user"
   }
 }
 ```
@@ -120,7 +122,7 @@ After receiving this message, endpoint should send its current state using `endp
 Sent when user sends command to endpoint
 - `uniqueHardwareId`, `type` and `state` must be provided
 - `state` must be `boolean`
-- `from` indicates the command source ("user" or "ml")
+- `from` indicates the command source (`user` or `ml`)
 ```json
 {
   "type": "set_endpoint_state",
@@ -163,9 +165,24 @@ Sent when user updates device configuration
     - `radar_only`: Use radar sensor only
     - `fusion_or`: Trigger when either PIR or radar detects
     - `fusion_and`: Trigger when both PIR and radar detect simultaneously
-  - `sound_mode` must be one of: `noise`, `clap`
-    - `noise`: Trigger on any loud noise
-    - `clap`: Trigger on clap detection
+  - `sensor_off_delay` must be an integer around [15, 300] seconds (default: 30)
+  - `timer` contains scheduled timer settings for each day of the week (0-6, Sunday-Saturday)
+    - Each day can have up to 20 timer entries
+    - Each timer entry contains:
+      - `h`: hour (0-23)
+      - `m`: minute (0-59)
+      - `s`: second (0-59)
+      - `a`: action (true for turn on, false for turn off)
+  - `mqtt_config` contains MQTT configuration parameters
+    - `device_name`: MQTT device name
+    - `broker_url`: MQTT broker URL
+    - `port`: MQTT broker port
+    - `topic_prefix`: MQTT topic prefix
+    - `username`: (Optional) MQTT username
+    - `password`: (Optional) MQTT password
+    - `client_id`: (Optional) MQTT client ID
+    - `ha_discovery_enabled`: (Optional) Home Assistant discovery enabled
+    - `ha_discovery_prefix`: (Optional) Home Assistant discovery prefix
 ```json
 {
   "type": "set_config",
@@ -174,7 +191,39 @@ Sent when user updates device configuration
     "config": {
       "automation_mode": "presence",
       "presence_mode": "fusion_or",
-      "sound_mode": "clap"
+      "sensor_off_delay": 30,
+      "timer": {
+        "0": [ // sunday
+          {
+            "h": 14,
+            "m": 30,
+            "s": 0,
+            "a": true   // turn on
+          },
+          {
+            "h": 22,
+            "m": 0,
+            "s": 0,
+            "a": false  // turn off
+          },
+          ... // max 20 per day
+        ],
+        "1": [ // monday
+            // Same structure as above
+        ],
+        // ...
+      },
+      "mqtt_config": {
+        "device_name": "device123",
+        "broker_url": "mqtt://broker.example.com",
+        "port": 1883,
+        "topic_prefix": "prefix123",
+        "username": "user",
+        "password": "pass",
+        "client_id": "client123",
+        "ha_discovery_enabled": false,
+        "ha_discovery_prefix": "homeassistant"
+      }
     }
   }
 }
@@ -209,7 +258,7 @@ Sent when user authenticates
 Sent when user sends command to endpoint
 - `uniqueHardwareId`, `type` and `state` must be provided
 - `state` must be `boolean`
-- `from` indicates the command source ("user" or "ml")
+- `from` indicates the command source (`user` or `ml`)
 ```json
 {
   "type": "set_endpoint_state",

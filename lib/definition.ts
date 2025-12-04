@@ -4,10 +4,9 @@ export interface EndpointMessageDTO {
         uniqueHardwareId: string,
         token?: string,
         state?: "on" | "off" | "error",
+        from?: "manual_or_user" | "presence_sensor" | "sound_sensor" | "timer" | "ml",
         command?: {
-            type: "toggle" | string,
-            state?: boolean
-            data?: string,
+            state?: boolean,
             from?: "user" | "ml",
         },
         sensor?: SensorDataDAO,
@@ -23,9 +22,7 @@ export interface UserMessageDTO {
         token?: string,
         state?: "on" | "off" | "error",
         command?: {
-            type: "toggle" | string,
             state?: boolean,
-            data?: string,
             from?: "user" | "ml",
         },
         [key: string]: any,
@@ -52,10 +49,23 @@ export interface SensorDataDAO {
     },
 }
 
+export interface TimerEntry {
+    h: number,    // hour (0-23)
+    m: number,    // minute (0-59)
+    s: number,    // second (0-59)
+    a: boolean,   // action (true: turn on, false: turn off)
+}
+
+export interface TimerSchedule {
+    [day: string]: TimerEntry[],  // day: 0-6 (Sunday-Saturday), max 20 entries per day
+}
+
 export interface EndpointConfigDTO {
     automation_mode?: "off" | "presence" | "sound" | "timer" | "ml",
     presence_mode?: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
-    sound_mode?: "noise" | "clap",
+    sensor_off_delay?: number,
+    timer?: TimerSchedule,
+    mqtt_config?: MQTTConfigDTO,
 }
 
 export interface UserRegisterDTO {
@@ -115,9 +125,39 @@ export interface SetPresenceModeDTO {
     mode: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
 }
 
-export interface SetSoundModeDTO {
+export interface SetSensorOffDelayDTO {
     unique_hardware_id: string,
-    mode: "noise" | "clap",
+    delay: number,
+}
+
+export interface SetTimerDTO {
+    unique_hardware_id: string,
+    timer: TimerSchedule,
+}
+
+export interface DeviceTimerDAO {
+    id: number,
+    unique_hardware_id: string,
+    day_of_week: number,
+    hour: number,
+    minute: number,
+    second: number,
+    action: boolean,
+    created_at: Date,
+    updated_at: Date,
+}
+
+export interface MQTTConfigDTO {
+    enable: boolean;
+    device_name?: string;
+    broker_url?: string;
+    port?: number;
+    topic_prefix?: string;
+    username?: string;
+    password?: string;
+    client_id?: string;
+    ha_discovery_enabled?: boolean;
+    ha_discovery_prefix?: string;
 }
 
 export interface DeviceConfigDAO {
@@ -125,7 +165,16 @@ export interface DeviceConfigDAO {
     unique_hardware_id: string,
     automation_mode: "off" | "presence" | "sound" | "timer" | "ml",
     presence_mode: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
-    sound_mode: "noise" | "clap",
+    sensor_off_delay: number,
+    mqtt_device_name?: string,
+    mqtt_broker_url?: string,
+    mqtt_port?: number,
+    mqtt_username?: string,
+    mqtt_password?: string,
+    mqtt_client_id?: string,
+    mqtt_topic_prefix?: string,
+    mqtt_ha_discovery_enabled?: boolean,
+    mqtt_ha_discovery_prefix?: string,
     created_at: Date,
     updated_at: Date,
 }
