@@ -4,10 +4,9 @@ export interface EndpointMessageDTO {
         uniqueHardwareId: string,
         token?: string,
         state?: "on" | "off" | "error",
+        from?: "manual_or_user" | "presence_sensor" | "sound_sensor" | "timer" | "ml",
         command?: {
-            type: "toggle" | string,
-            state?: boolean
-            data?: string,
+            state?: boolean,
             from?: "user" | "ml",
         },
         sensor?: SensorDataDAO,
@@ -23,9 +22,7 @@ export interface UserMessageDTO {
         token?: string,
         state?: "on" | "off" | "error",
         command?: {
-            type: "toggle" | string,
             state?: boolean,
-            data?: string,
             from?: "user" | "ml",
         },
         [key: string]: any,

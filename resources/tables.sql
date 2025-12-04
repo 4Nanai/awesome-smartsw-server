@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS `switch_data`
   `id` INT NOT NULL AUTO_INCREMENT,
   `unique_hardware_id` VARCHAR(100) NOT NULL,
   `state` BOOLEAN NOT NULL,
+  `from` ENUM('manual_or_user', 'presence_sensor', 'sound_sensor', 'timer', 'ml') NOT NULL,
   `ts` BIGINT NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `idx_unique_hardware_id_ts_UNIQUE` (`unique_hardware_id` ASC, `ts` ASC),

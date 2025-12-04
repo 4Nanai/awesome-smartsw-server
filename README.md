@@ -85,12 +85,14 @@ Endpoint reports its current state
 - `uniqueHardwareId` must be provided
 - `state` must be provided
 - `state` can be `on`, `off`, and `error`.
+- `from` indicates the command source (`manual_or_user`, `presence_sensor`, `sound_sensor`, `timer`, `ml`)
 ```json
 {
   "type": "endpoint_state",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
-    "state": "on"
+    "state": "on",
+    "from": "manual_or_user"
   }
 }
 ```

@@ -325,6 +325,20 @@ async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMes
             if (data.payload?.state && ws.hardwareId) {
                 console.log(`[SocketManager] Received state from ${ws.hardwareId}:`, data.payload);
                 try {
+                    // Store state to database
+                    const stateBoolean = data.payload.state === 'on';
+                    const from = data.payload.from || 'manual_or_user';
+                    const insertSwitchDataQuery = `INSERT INTO switch_data (unique_hardware_id, state, \`from\`, ts) VALUES (?, ?, ?, ?)`;
+                    const [insertResult] = await db.execute<ResultSetHeader>(insertSwitchDataQuery, [
+                        ws.hardwareId,
+                        stateBoolean,
+                        from,
+                        Date.now(),
+                    ]);
+                    if (insertResult.affectedRows !== 1) {
+                        console.error('[SocketManager] Failed to insert endpoint state data into database');
+                    }
+
                     const selectUserIdQuery = `SELECT user_id FROM devices WHERE unique_hardware_id = ?`;
                     const [rows] = await db.execute<RowDataPacket[]>(selectUserIdQuery, [ws.hardwareId]) as [{ user_id: number }[], any];
 
@@ -377,10 +391,12 @@ async function handleUserMessage(ws: AuthenticatedWebSocket, data: UserMessageDT
                         },
                     };
                     deviceSocket.send(JSON.stringify(commandMessage));
-                    const insertSwitchDataQuery = `INSERT INTO switch_data (unique_hardware_id, state, ts) VALUES (?, ?, ?)`;
+                    const from = data.payload.command.from === 'ml' ? 'ml' : 'manual_or_user';
+                    const insertSwitchDataQuery = `INSERT INTO switch_data (unique_hardware_id, state, \`from\`, ts) VALUES (?, ?, ?, ?)`;
                     const [result] = await db.execute<ResultSetHeader>(insertSwitchDataQuery, [
                         targetId,
                         data.payload.command.state ?? null,
+                        from,
                         Date.now(),
                     ]);
                     if (result.affectedRows !== 1) {
