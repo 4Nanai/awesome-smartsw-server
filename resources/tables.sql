@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS `device_configs`
   `unique_hardware_id` VARCHAR(100) NOT NULL,
   `automation_mode` ENUM('off', 'presence', 'sound', 'timer', 'ml') NOT NULL DEFAULT 'off',
   `presence_mode` ENUM('pir_only', 'radar_only', 'fusion_or', 'fusion_and') NOT NULL DEFAULT 'fusion_or',
-  `sound_mode` ENUM('noise', 'clap') NOT NULL DEFAULT 'noise',
+  `sensor_off_delay` INT NOT NULL DEFAULT 30,
   `mqtt_device_name` VARCHAR(100) NULL,
   `mqtt_broker_url` VARCHAR(255) NULL,
   `mqtt_port` INT NULL,

@@ -55,7 +55,7 @@ export interface SensorDataDAO {
 export interface EndpointConfigDTO {
     automation_mode?: "off" | "presence" | "sound" | "timer" | "ml",
     presence_mode?: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
-    sound_mode?: "noise" | "clap",
+    sensor_off_delay?: number,
     mqtt_config?: MQTTConfigDTO,
 }
 
@@ -116,11 +116,10 @@ export interface SetPresenceModeDTO {
     mode: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
 }
 
-export interface SetSoundModeDTO {
+export interface SetSensorOffDelayDTO {
     unique_hardware_id: string,
-    mode: "noise" | "clap",
+    delay: number,
 }
-
 
 export interface MQTTConfigDTO {
     device_name: string;
@@ -137,7 +136,7 @@ export interface DeviceConfigDAO {
     unique_hardware_id: string,
     automation_mode: "off" | "presence" | "sound" | "timer" | "ml",
     presence_mode: "pir_only" | "radar_only" | "fusion_or" | "fusion_and",
-    sound_mode: "noise" | "clap",
+    sensor_off_delay: number,
     mqtt_device_name?: string,
     mqtt_broker_url?: string,
     mqtt_port?: number,

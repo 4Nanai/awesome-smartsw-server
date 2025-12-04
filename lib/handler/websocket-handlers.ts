@@ -146,7 +146,7 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
             configDTO = {
                 automation_mode: config.automation_mode,
                 presence_mode: config.presence_mode,
-                sound_mode: config.sound_mode,
+                sensor_off_delay: config.sensor_off_delay,
             }
         }
         else {

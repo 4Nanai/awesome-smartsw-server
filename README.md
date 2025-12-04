@@ -163,17 +163,17 @@ Sent when user updates device configuration
     - `radar_only`: Use radar sensor only
     - `fusion_or`: Trigger when either PIR or radar detects
     - `fusion_and`: Trigger when both PIR and radar detect simultaneously
-  - `sound_mode` must be one of: `noise`, `clap`
-    - `noise`: Trigger on any loud noise
-    - `clap`: Trigger on clap detection
+  - `sensor_off_delay` must be an integer around [15, 300] seconds (default: 30)
   - `mqtt_config` contains MQTT configuration parameters
     - `device_name`: MQTT device name
     - `broker_url`: MQTT broker URL
     - `port`: MQTT broker port
+    - `topic_prefix`: MQTT topic prefix
     - `username`: (Optional) MQTT username
     - `password`: (Optional) MQTT password
     - `client_id`: (Optional) MQTT client ID
-    - `topic_prefix`: MQTT topic prefix
+    - `ha_discovery_enabled`: (Optional) Home Assistant discovery enabled
+    - `ha_discovery_prefix`: (Optional) Home Assistant discovery prefix
 ```json
 {
   "type": "set_config",
@@ -182,7 +182,7 @@ Sent when user updates device configuration
     "config": {
       "automation_mode": "presence",
       "presence_mode": "fusion_or",
-      "sound_mode": "clap",
+      "sensor_off_delay": 30,
       "mqtt_config": {
         "device_name": "device123",
         "broker_url": "mqtt://broker.example.com",
@@ -191,6 +191,8 @@ Sent when user updates device configuration
         "username": "user",
         "password": "pass",
         "client_id": "client123",
+        "ha_discovery_enabled": false,
+        "ha_discovery_prefix": "homeassistant"
       }
     }
   }

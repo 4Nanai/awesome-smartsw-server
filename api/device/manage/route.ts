@@ -1,7 +1,7 @@
 import {Router} from "express";
 import db from "../../../lib/db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
-import {DeviceInfoDAO, DeviceDTO, DeviceUpdateAliasDTO, SetAutomationModeDTO, SetPresenceModeDTO, SetSoundModeDTO, EndpointMessageDTO, DeviceConfigDAO, MQTTConfigDTO} from "../../../lib/definition";
+import {DeviceInfoDAO, DeviceDTO, DeviceUpdateAliasDTO, SetAutomationModeDTO, SetPresenceModeDTO, SetSensorOffDelayDTO, EndpointMessageDTO, DeviceConfigDAO, MQTTConfigDTO} from "../../../lib/definition";
 import {deviceConnectionMap} from "../../../lib/socket-manager";
 
 const DeviceManageRouter = Router();
@@ -293,22 +293,21 @@ DeviceManageRouter.post("/config/presence-mode", async (req, res) => {
     }
 });
 
-DeviceManageRouter.post("/config/sound-mode", async (req, res) => {
+DeviceManageRouter.post("/config/sensor-off-delay", async (req, res) => {
     try {
         const userId = req.user!.id;
-        const configDTO: SetSoundModeDTO = req.body;
+        const configDTO: SetSensorOffDelayDTO = req.body;
         
-        if (!configDTO.unique_hardware_id || !configDTO.mode) {
+        if (!configDTO.unique_hardware_id || !configDTO.delay) {
             res.status(400).json({
-                error: "unique_hardware_id and mode are required"
+                error: "unique_hardware_id and delay are required"
             });
             return;
         }
         
-        const validModes = ["noise", "clap"];
-        if (!validModes.includes(configDTO.mode)) {
+        if (typeof configDTO.delay !== "number" || configDTO.delay < 30 || configDTO.delay > 360) {
             res.status(400).json({
-                error: "Invalid mode. Must be one of: noise, clap"
+                error: "Invalid delay. Must be a number between 30 and 360 seconds"
             });
             return;
         }
@@ -339,14 +338,14 @@ DeviceManageRouter.post("/config/sound-mode", async (req, res) => {
         }
         
         const upsertConfigQuery = `
-            INSERT INTO device_configs (unique_hardware_id, sound_mode)
+            INSERT INTO device_configs (unique_hardware_id, sensor_off_delay)
             VALUES (?, ?)
-            ON DUPLICATE KEY UPDATE sound_mode = ?, updated_at = CURRENT_TIMESTAMP
+            ON DUPLICATE KEY UPDATE sensor_off_delay = ?, updated_at = CURRENT_TIMESTAMP
         `;
         await db.execute<ResultSetHeader>(upsertConfigQuery, [
             configDTO.unique_hardware_id,
-            configDTO.mode,
-            configDTO.mode
+            configDTO.delay,
+            configDTO.delay
         ]);
         
         // Notify endpoint to update its configuration
@@ -355,7 +354,7 @@ DeviceManageRouter.post("/config/sound-mode", async (req, res) => {
             payload: {
                 uniqueHardwareId: configDTO.unique_hardware_id,
                 config: {
-                    sound_mode: configDTO.mode
+                    sensor_off_delay: configDTO.delay
                 }
             }
         };
@@ -363,10 +362,10 @@ DeviceManageRouter.post("/config/sound-mode", async (req, res) => {
         ws.send(JSON.stringify(message));
         
         res.status(200).json({
-            message: "Sound mode configuration sent successfully"
+            message: "Sensor off delay configuration sent successfully"
         });
     } catch (error) {
-        console.error("Error configuring sound mode:", error);
+        console.error("Error configuring sensor off delay:", error);
         res.status(500).json({
             error: "Internal Server Error"
         });
