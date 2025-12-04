@@ -164,6 +164,13 @@ Sent when user updates device configuration
     - `fusion_or`: Trigger when either PIR or radar detects
     - `fusion_and`: Trigger when both PIR and radar detect simultaneously
   - `sensor_off_delay` must be an integer around [15, 300] seconds (default: 30)
+  - `timer` contains scheduled timer settings for each day of the week (0-6, Sunday-Saturday)
+    - Each day can have up to 20 timer entries
+    - Each timer entry contains:
+      - `h`: hour (0-23)
+      - `m`: minute (0-59)
+      - `s`: second (0-59)
+      - `a`: action (true for turn on, false for turn off)
   - `mqtt_config` contains MQTT configuration parameters
     - `device_name`: MQTT device name
     - `broker_url`: MQTT broker URL
@@ -183,6 +190,27 @@ Sent when user updates device configuration
       "automation_mode": "presence",
       "presence_mode": "fusion_or",
       "sensor_off_delay": 30,
+      "timer": {
+        "0": [ // sunday
+          {
+            "h": 14,
+            "m": 30,
+            "s": 0,
+            "a": true   // turn on
+          },
+          {
+            "h": 22,
+            "m": 0,
+            "s": 0,
+            "a": false  // turn off
+          },
+          ... // max 20 per day
+        ],
+        "1": [ // monday
+            // Same structure as above
+        ],
+        // ...
+      },
       "mqtt_config": {
         "device_name": "device123",
         "broker_url": "mqtt://broker.example.com",

@@ -1,5 +1,5 @@
 import {AuthenticatedWebSocket, deviceConnectionMap, userConnectionMap, startHeartbeat} from "../socket-manager";
-import {BindingTokenDAO, DeviceBindingDAO, DeviceConfigDAO, DeviceInfoDAO, EndpointConfigDTO, EndpointMessageDTO, SensorDataDAO, UserMessageDTO} from "../definition";
+import {BindingTokenDAO, DeviceBindingDAO, DeviceConfigDAO, DeviceInfoDAO, EndpointConfigDTO, EndpointMessageDTO, SensorDataDAO, UserMessageDTO, DeviceTimerDAO, TimerSchedule} from "../definition";
 import db from "../db";
 import {ResultSetHeader, RowDataPacket} from "mysql2";
 import {verifyToken} from "../jwt";
@@ -114,6 +114,26 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
                     ...(config.mqtt_ha_discovery_prefix && { ha_discovery_prefix: config.mqtt_ha_discovery_prefix }),
                 };
             }
+
+            // Load timer configuration
+            const selectTimersQuery = `SELECT day_of_week, hour, minute, second, action FROM device_timers WHERE unique_hardware_id = ? ORDER BY day_of_week, hour, minute, second`;
+            const [timersResult] = await db.execute<RowDataPacket[]>(selectTimersQuery, [hardwareId]) as [DeviceTimerDAO[], any];
+            if (timersResult.length > 0) {
+                const timerSchedule: TimerSchedule = {};
+                timersResult.forEach((timer) => {
+                    const dayKey = timer.day_of_week.toString();
+                    if (!timerSchedule[dayKey]) {
+                        timerSchedule[dayKey] = [];
+                    }
+                    timerSchedule[dayKey]!.push({
+                        h: timer.hour,
+                        m: timer.minute,
+                        s: timer.second,
+                        a: timer.action,
+                    });
+                });
+                configDTO.timer = timerSchedule;
+            }
         }
         else {
             console.log(`[SocketManager] No existing configuration found for device ${hardwareId} during authentication.`);
@@ -202,6 +222,26 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
                     ...(config.mqtt_ha_discovery_enabled !== null && { ha_discovery_enabled: config.mqtt_ha_discovery_enabled }),
                     ...(config.mqtt_ha_discovery_prefix && { ha_discovery_prefix: config.mqtt_ha_discovery_prefix }),
                 };
+            }
+
+            // Load timer configuration
+            const selectTimersQuery = `SELECT day_of_week, hour, minute, second, action FROM device_timers WHERE unique_hardware_id = ? ORDER BY day_of_week, hour, minute, second`;
+            const [timersResult] = await db.execute<RowDataPacket[]>(selectTimersQuery, [hardwareId]) as [DeviceTimerDAO[], any];
+            if (timersResult.length > 0) {
+                const timerSchedule: TimerSchedule = {};
+                timersResult.forEach((timer) => {
+                    const dayKey = timer.day_of_week.toString();
+                    if (!timerSchedule[dayKey]) {
+                        timerSchedule[dayKey] = [];
+                    }
+                    timerSchedule[dayKey]!.push({
+                        h: timer.hour,
+                        m: timer.minute,
+                        s: timer.second,
+                        a: timer.action,
+                    });
+                });
+                configDTO.timer = timerSchedule;
             }
         }
         else {
