@@ -305,9 +305,9 @@ DeviceManageRouter.post("/config/sensor-off-delay", async (req, res) => {
             return;
         }
         
-        if (typeof configDTO.delay !== "number" || configDTO.delay < 30 || configDTO.delay > 360) {
+        if (typeof configDTO.delay !== "number" || configDTO.delay < 15 || configDTO.delay > 300) {
             res.status(400).json({
-                error: "Invalid delay. Must be a number between 30 and 360 seconds"
+                error: "Invalid delay. Must be a number between 15 and 300 seconds"
             });
             return;
         }
