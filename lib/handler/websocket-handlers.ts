@@ -383,7 +383,6 @@ async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMes
     switch (data.type) {
         case 'data_report':
             console.log(`[SocketManager] Received sensor data from ${ws.hardwareId}:`, data.payload);
-            // TODO: handle data report
             if (data.payload?.sensor) {
                 await handleSensorData(ws.hardwareId!, data.payload.sensor);
             }
@@ -395,8 +394,9 @@ async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMes
         case 'endpoint_state':
             if (data.payload?.state && ws.hardwareId) {
                 console.log(`[SocketManager] Received state from ${ws.hardwareId}:`, data.payload);
+                
+                // Store state to database
                 try {
-                    // Store state to database
                     const stateBoolean = data.payload.state === 'on';
                     const from = data.payload.from || 'manual_or_user';
                     const insertSwitchDataQuery = `INSERT INTO switch_data (unique_hardware_id, state, \`from\`, ts) VALUES (?, ?, ?, ?)`;
@@ -410,6 +410,16 @@ async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMes
                         console.error('[SocketManager] Failed to insert endpoint state data into database');
                     }
 
+                    // Store sensor data if provided
+                    if (data.payload.sensor) {
+                        await handleSensorData(ws.hardwareId, data.payload.sensor);
+                    }
+                } catch (error) {
+                    console.error('[SocketManager] Database error storing endpoint state:', error);
+                }
+
+                // Forward state to user
+                try {
                     const selectUserIdQuery = `SELECT user_id FROM devices WHERE unique_hardware_id = ?`;
                     const [rows] = await db.execute<RowDataPacket[]>(selectUserIdQuery, [ws.hardwareId]) as [{ user_id: number }[], any];
 
@@ -424,6 +434,7 @@ async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMes
                             payload: {
                                 uniqueHardwareId: ws.hardwareId,
                                 state: data.payload.state,
+                                ...(data.payload.sensor && { sensor: data.payload.sensor }),
                             },
                         };
                         userSocket.send(JSON.stringify(response));

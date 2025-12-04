@@ -25,6 +25,7 @@ export interface UserMessageDTO {
             state?: boolean,
             from?: "user" | "ml",
         },
+        sensor?: SensorDataDAO,
         [key: string]: any,
     },
     message?: string,

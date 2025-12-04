@@ -86,13 +86,32 @@ Endpoint reports its current state
 - `state` must be provided
 - `state` can be `on`, `off`, and `error`.
 - `from` indicates the command source (`manual_or_user`, `presence_sensor`, `sound_sensor`, `timer`, `ml`)
+- `sensor` can be provided, and it should be the same as in `data_report`
 ```json
 {
   "type": "endpoint_state",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
     "state": "on",
-    "from": "manual_or_user"
+    "from": "manual_or_user",
+    "sensor": {
+      "temp_humi": {
+        "temperature": 25.5,
+        "humidity": 60,
+        "ts": 1625247600
+      },
+      "pir": {
+        "state": true,
+        "ts": 1625247600
+      },
+      "radar": {
+        "state": false,
+        "ts": 1625247600
+      },
+      "sound": {
+        "ts": 1625247600
+      }
+    }
   }
 }
 ```
@@ -309,12 +328,31 @@ Sent when user authentication is successful
 Sent when server returns endpoint state(s)
 - `uniqueHardwareId` and `state` must be provided
 - `state` can be `on`, `off`, `error`.
+- `sensor` can be provided, and it should be the same as in `data_report`
 ```json
 {
   "type": "endpoint_state",
   "payload": {
     "uniqueHardwareId": "Endpoint MAC address",
-    "state": "on"
+    "state": "on",
+    "sensor": {
+      "temp_humi": {
+        "temperature": 25.5,
+        "humidity": 60,
+        "ts": 1625247600
+      },
+      "pir": {
+        "state": true,
+        "ts": 1625247600
+      },
+      "radar": {
+        "state": false,
+        "ts": 1625247600
+      },
+      "sound": {
+        "ts": 1625247600
+      }
+    }
   }
 }
 ```
