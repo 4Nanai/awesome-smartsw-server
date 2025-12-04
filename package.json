@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node --loader ts-node/esm index.ts",
-    "dev": "ts-node-dev --loader ts-node/esm index.ts"
+    "start": "ts-node index.ts",
+    "dev": "ts-node-dev index.ts"
   },
   "keywords": [],
   "author": "",

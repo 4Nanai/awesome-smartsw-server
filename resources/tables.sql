@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `users`
     `username`      VARCHAR(50)  NOT NULL,
     `password_hash` VARCHAR(255) NOT NULL,
     `email`         VARCHAR(100) NOT NULL,
+    `timezone`      VARCHAR(50)  NOT NULL DEFAULT 'UTC',
     `created_at`    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE INDEX `username_UNIQUE` (`username` ASC)
