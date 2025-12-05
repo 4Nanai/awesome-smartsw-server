@@ -146,28 +146,69 @@ client.on('open', () => {
 
     rl.on('line', (input) => {
         const command = input.trim().toLowerCase();
+        const now = Date.now();
         if (command === 'on') {
-            const setStateMessage: UserMessageDTO = {
+            const sensorData: SensorDataDAO = {
+                temp_humi: {
+                    temperature: Math.round((Math.random() * 20 + 15) * 10) / 10, // 15-35°C
+                    humidity: Math.round(Math.random() * 50 + 30), // 30-80%
+                    ts: now
+                },
+                pir: {
+                    state: Math.random() > 0.6,
+                    ts: now
+                },
+                radar: {
+                    state: Math.random() > 0.7,
+                    ts: now
+                },
+                sound: {
+                    ts: now
+                }
+            };
+            const setStateMessage: EndpointMessageDTO = {
                 type: "endpoint_state",
                 payload: {
                     uniqueHardwareId: uniqueHardwareId,
                     state: "on",
                     from: "manual_or_user",
+                    sensor: sensorData,
                 }
             };
             client.send(JSON.stringify(setStateMessage));
-            console.log(`Sent endpoint_state: on`);
+            console.log(`Sent endpoint_state: on with sensor data:`, JSON.stringify(sensorData, null, 2));
+            state = "on";
         } else if (command === 'off') {
-            const setStateMessage: UserMessageDTO = {
+            const sensorData: SensorDataDAO = {
+                temp_humi: {
+                    temperature: Math.round((Math.random() * 20 + 15) * 10) / 10, // 15-35°C
+                    humidity: Math.round(Math.random() * 50 + 30), // 30-80%
+                    ts: now
+                },
+                pir: {
+                    state: Math.random() > 0.6,
+                    ts: now
+                },
+                radar: {
+                    state: Math.random() > 0.7,
+                    ts: now
+                },
+                sound: {
+                    ts: now
+                }
+            };
+            const setStateMessage: EndpointMessageDTO = {
                 type: "endpoint_state",
                 payload: {
                     uniqueHardwareId: uniqueHardwareId,
                     state: "off",
                     from: "manual_or_user",
+                    sensor: sensorData,
                 }
             };
             client.send(JSON.stringify(setStateMessage));
-            console.log(`Sent endpoint_state: off`);
+            console.log(`Sent endpoint_state: off with sensor data:`, JSON.stringify(sensorData, null, 2));
+            state = "off";
         } else {
             console.log('Invalid command. Please enter "on" or "off".');
         }
@@ -246,15 +287,36 @@ client.on('error', (error: Error) => {
 });
 
 const handleQueryEndpointState = () => {
+    const now = Date.now();
+    const sensorData: SensorDataDAO = {
+        temp_humi: {
+            temperature: Math.round((Math.random() * 20 + 15) * 10) / 10, // 15-35°C
+            humidity: Math.round(Math.random() * 50 + 30), // 30-80%
+            ts: now
+        },
+        pir: {
+            state: Math.random() > 0.6,
+            ts: now
+        },
+        radar: {
+            state: Math.random() > 0.7,
+            ts: now
+        },
+        sound: {
+            ts: now
+        }
+    };
     const response: EndpointMessageDTO = {
         type: "endpoint_state",
         payload: {
             uniqueHardwareId: uniqueHardwareId,
             state: state,
             from: "manual_or_user",
+            sensor: sensorData,
         }
     };
     client.send(JSON.stringify(response));
+    console.log(`Sent endpoint state with sensor data:`, JSON.stringify(sensorData, null, 2));
 }
 
 const handleSetEndpointState = (message: EndpointMessageDTO) => {
@@ -262,16 +324,36 @@ const handleSetEndpointState = (message: EndpointMessageDTO) => {
         const command = message.payload.command;
         if (command) {
             state = command.state ? "on" : "off";
-            console.log(`Toggled state to: ${state} (from: ${command.from || 'unknown'})`);
+            const now = Date.now();
+            const sensorData: SensorDataDAO = {
+                temp_humi: {
+                    temperature: Math.round((Math.random() * 20 + 15) * 10) / 10, // 15-35°C
+                    humidity: Math.round(Math.random() * 50 + 30), // 30-80%
+                    ts: now
+                },
+                pir: {
+                    state: Math.random() > 0.6,
+                    ts: now
+                },
+                radar: {
+                    state: Math.random() > 0.7,
+                    ts: now
+                },
+                sound: {
+                    ts: now
+                }
+            };
             const response: EndpointMessageDTO = {
                 type: "endpoint_state",
                 payload: {
                     uniqueHardwareId: uniqueHardwareId,
                     state: state,
                     from: command.from === 'ml' ? 'ml' : 'manual_or_user',
+                    sensor: sensorData,
                 }
             };
             client.send(JSON.stringify(response));
+            console.log(`Toggled state to: ${state} (from: ${command.from || 'unknown'}) with sensor data:`, JSON.stringify(sensorData, null, 2));
         }
     }
 }

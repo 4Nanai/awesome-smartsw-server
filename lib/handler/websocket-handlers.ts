@@ -89,6 +89,18 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
     // start heartbeat monitoring
     startHeartbeat(ws);
 
+    // Fetch user timezone
+    let userTimezone = 'UTC';
+    try {
+        const selectUserQuery = `SELECT timezone FROM users WHERE id = ?`;
+        const [userResult] = await db.execute<RowDataPacket[]>(selectUserQuery, [userId]) as [{timezone: string}[], any];
+        if (userResult.length === 1) {
+            userTimezone = userResult[0]!.timezone;
+        }
+    } catch (error) {
+        console.error('[SocketManager] Error fetching user timezone during device authentication:', error);
+    }
+
     // send configuration to device (if any)
     let configDTO: EndpointConfigDTO | undefined = undefined;
     try {
@@ -151,7 +163,12 @@ async function handleDeviceAuth(ws: AuthenticatedWebSocket, data: EndpointMessag
         }
     };
     if (configDTO) {
+        configDTO.timezone = userTimezone;
         response.payload!.config = configDTO;
+    } else {
+        response.payload!.config = {
+            timezone: userTimezone,
+        };
     }
     ws.send(JSON.stringify(response));
 }
@@ -198,6 +215,18 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
 
     // start heartbeat monitoring
     startHeartbeat(ws);
+
+    // Fetch user timezone
+    let userTimezone = 'UTC';
+    try {
+        const selectUserQuery = `SELECT timezone FROM users WHERE id = ?`;
+        const [userResult] = await db.execute<RowDataPacket[]>(selectUserQuery, [user_id]) as [{timezone: string}[], any];
+        if (userResult.length === 1) {
+            userTimezone = userResult[0]!.timezone;
+        }
+    } catch (error) {
+        console.error('[SocketManager] Error fetching user timezone during device reconnection:', error);
+    }
 
     // send configuration to device (if any)
     let configDTO: EndpointConfigDTO | undefined = undefined;
@@ -261,7 +290,12 @@ async function handleDeviceReconnect(ws: AuthenticatedWebSocket, data: EndpointM
         }
     };
     if (configDTO) {
+        configDTO.timezone = userTimezone;
         response.payload!.config = configDTO;
+    } else {
+        response.payload!.config = {
+            timezone: userTimezone,
+        };
     }
     ws.send(JSON.stringify(response));
 }
@@ -286,6 +320,7 @@ async function handleUserAuth(ws: AuthenticatedWebSocket, data: UserMessageDTO, 
     }
 
     const userId = userPayload.id;
+    const timezone = userPayload.timezone;
     console.log(`[SocketManager] User ${userId} authenticated.`);
     clearTimeout(authTimeout);
 
@@ -302,8 +337,42 @@ async function handleUserAuth(ws: AuthenticatedWebSocket, data: UserMessageDTO, 
     // start heartbeat monitoring
     startHeartbeat(ws);
 
-    // reply to user
-    ws.send(JSON.stringify({type: 'auth_success', message: 'User authentication successful.'}));
+    // reply to user with timezone in config
+    const response: UserMessageDTO = {
+        type: 'auth_success',
+        message: 'User authentication successful.',
+        payload: {
+            config: {
+                timezone: timezone,
+            },
+        },
+    };
+    ws.send(JSON.stringify(response));
+
+    // Send timezone to all connected devices owned by this user
+    try {
+        const selectDevicesQuery = `SELECT unique_hardware_id FROM devices WHERE user_id = ?`;
+        const [devices] = await db.execute<RowDataPacket[]>(selectDevicesQuery, [userId]) as [{unique_hardware_id: string}[], any];
+
+        for (const device of devices) {
+            const deviceSocket = deviceConnectionMap.get(device.unique_hardware_id);
+            if (deviceSocket && deviceSocket.readyState === WebSocket.OPEN) {
+                const configMessage: EndpointMessageDTO = {
+                    type: "set_config",
+                    payload: {
+                        uniqueHardwareId: device.unique_hardware_id,
+                        config: {
+                            timezone: timezone,
+                        },
+                    },
+                };
+                deviceSocket.send(JSON.stringify(configMessage));
+                console.log(`[SocketManager] Sent timezone to device ${device.unique_hardware_id} after user auth`);
+            }
+        }
+    } catch (error) {
+        console.error('[SocketManager] Error sending timezone to devices after user auth:', error);
+    }
 }
 
 
@@ -314,7 +383,6 @@ async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMes
     switch (data.type) {
         case 'data_report':
             console.log(`[SocketManager] Received sensor data from ${ws.hardwareId}:`, data.payload);
-            // TODO: handle data report
             if (data.payload?.sensor) {
                 await handleSensorData(ws.hardwareId!, data.payload.sensor);
             }
@@ -326,8 +394,9 @@ async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMes
         case 'endpoint_state':
             if (data.payload?.state && ws.hardwareId) {
                 console.log(`[SocketManager] Received state from ${ws.hardwareId}:`, data.payload);
+                
+                // Store state to database
                 try {
-                    // Store state to database
                     const stateBoolean = data.payload.state === 'on';
                     const from = data.payload.from || 'manual_or_user';
                     const insertSwitchDataQuery = `INSERT INTO switch_data (unique_hardware_id, state, \`from\`, ts) VALUES (?, ?, ?, ?)`;
@@ -341,6 +410,16 @@ async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMes
                         console.error('[SocketManager] Failed to insert endpoint state data into database');
                     }
 
+                    // Store sensor data if provided
+                    if (data.payload.sensor) {
+                        await handleSensorData(ws.hardwareId, data.payload.sensor);
+                    }
+                } catch (error) {
+                    console.error('[SocketManager] Database error storing endpoint state:', error);
+                }
+
+                // Forward state to user
+                try {
                     const selectUserIdQuery = `SELECT user_id FROM devices WHERE unique_hardware_id = ?`;
                     const [rows] = await db.execute<RowDataPacket[]>(selectUserIdQuery, [ws.hardwareId]) as [{ user_id: number }[], any];
 
@@ -355,6 +434,7 @@ async function handleDeviceMessage(ws: AuthenticatedWebSocket, data: EndpointMes
                             payload: {
                                 uniqueHardwareId: ws.hardwareId,
                                 state: data.payload.state,
+                                ...(data.payload.sensor && { sensor: data.payload.sensor }),
                             },
                         };
                         userSocket.send(JSON.stringify(response));
