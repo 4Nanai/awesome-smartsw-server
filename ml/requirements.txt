@@ -5,3 +5,5 @@ skl2onnx
 scikit-learn
 numpy
 packaging
+onnxruntime
+onnxruntime
