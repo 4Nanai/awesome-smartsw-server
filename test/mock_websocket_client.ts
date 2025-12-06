@@ -11,7 +11,7 @@ const IS_RECONNECT = false;
 const TOKEN = "TOKEN";
 const UNIQUE_HARDWARE_ID = "ID";
 
-const DATA_REPORT_ENABLE = true;
+const DATA_REPORT_ENABLE = false;
 
 const generateRandomMacAddress = () => {
     const hexDigits = "0123456789ABCDEF";
